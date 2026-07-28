@@ -1,0 +1,7 @@
+{
+  "name": "app-yarqua",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

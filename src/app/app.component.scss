@@ -1,0 +1,27 @@
+/* App shell — blue / green brand menu */
+ion-menu ion-toolbar {
+  --background: #1060c0;
+  --color: #ffffff;
+}
+
+ion-menu ion-title {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 700;
+}
+
+ion-menu ion-content {
+  --background: #ffffff;
+}
+
+ion-menu ion-item {
+  --padding-start: 16px;
+  --color: #1a2a3a;
+}
+
+ion-menu ion-icon {
+  color: #1060c0;
+}
+
+ion-menu ion-item:last-of-type ion-icon {
+  color: #309020;
+}
