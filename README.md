@@ -1,13 +1,36 @@
 # Yarqua (Ionic)
 
-App móvil MVP de **Yarqua** — riego inteligente (FONTAGRO AGRO 4.0 · AGROSAVIA).
+App móvil de **Yarqua** — riego inteligente (FONTAGRO AGRO 4.0 · AGROSAVIA).
 
 Stack: **Ionic 8 + Angular 20 + Capacitor 8** (NgModules).
 
 ## Requisitos
 
-- Node.js 20+
-- API Yarqua en `http://localhost:5080` (o ajustar `src/environments/environment.ts`)
+- Node.js **≥ 22** (Capacitor 8)
+- Backend `ws-yarqua` levantado (ver sección siguiente)
+
+## Backend (ws-yarqua) — el otro lado
+
+La app consume la API en el puerto **5080**. SQL Server (Docker) en **1433**.
+
+| Servicio | URL / puerto |
+|----------|----------------|
+| API HTTP | `http://localhost:5080` |
+| API base (app) | `http://127.0.0.1:5080/api/v1` |
+| Swagger | `http://localhost:5080/swagger` |
+| Health | `http://localhost:5080/health` |
+| SQL Server | `localhost:1433` · base `dbYarqua` |
+
+```bash
+cd ../ws-yarqua   # o la ruta del repo ws-yarqua
+docker compose up -d
+./database/install.sh
+
+export PATH="$HOME/.dotnet:$PATH"
+dotnet run --project src/Yarqua.Api --launch-profile http
+```
+
+Detalle (secretos, capas, endpoints): ver `ws-yarqua/README.md`.
 
 ## Instalación
 
@@ -24,16 +47,17 @@ npx ionic serve
 npm start
 ```
 
-Abre `http://localhost:8100`. La app inicia en `/splash`, registra sin contraseña y muestra el mapa OSM (Leaflet).
+Abre **`http://localhost:8100`**. La app inicia en `/splash`, registra sin contraseña y muestra el mapa OSM (Leaflet).
 
 ### API base URL
 
 En `src/environments/environment.ts`:
 
 ```ts
-apiBaseUrl: 'http://localhost:5080/api/v1',
-// Emulador Android:
+apiBaseUrl: 'http://127.0.0.1:5080/api/v1',
+// Emulador Android (sin adb reverse):
 // apiBaseUrl: 'http://10.0.2.2:5080/api/v1',
+// Dispositivo físico: adb reverse tcp:5080 tcp:5080 + 127.0.0.1
 ```
 
 Producción: placeholder en `environment.prod.ts`.

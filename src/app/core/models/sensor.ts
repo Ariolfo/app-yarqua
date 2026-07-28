@@ -1,4 +1,4 @@
-/** Lectura de humedad por profundidad. */
+/** Lectura de humedad por canal (sensor_1 / sensor_2). */
 export interface Reading {
   depthCm: number;
   value: number;
