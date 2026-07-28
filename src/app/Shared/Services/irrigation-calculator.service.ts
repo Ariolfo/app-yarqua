@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import {
   IrrigationCropProfile,
   IrrigationRecommendation,
-} from '../models/irrigation';
+} from '../Models/irrigation';
 
 /**
  * Calculadora de riego local (sin llamadas a la API).

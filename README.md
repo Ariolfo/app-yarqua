@@ -108,8 +108,15 @@ npm test -- --watch=false --browsers=ChromeHeadless
 
 ## Estructura
 
+Conforme a Guía DTI · Arquitectura Angular (6.1):
+
 ```
-src/app/core/          # models, services, guards
-src/app/pages/         # splash, register, map, sensor-detail, irrigation-calculator
-src/environments/      # apiBaseUrl
+src/app/Modules/              # splash, register, map, sensor-detail, irrigation-calculator
+src/app/Shared/Services/      # HTTP, auth, geo, estaciones, sensores, calculadora
+src/app/Shared/Models/        # contratos TypeScript
+src/app/Shared/Guards/        # AuthGuard
+src/app/Shared/Directives/    # (reservado)
+src/app/Shared/Pipes/         # (reservado)
+src/app/components/           # UI reutilizable a nivel app
+src/environments/             # apiBaseUrl
 ```

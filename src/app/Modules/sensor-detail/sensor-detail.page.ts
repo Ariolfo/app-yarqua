@@ -13,11 +13,11 @@ import {
   HistoryRange,
   Sensor,
   SensorNavState,
-} from '../../core/models/sensor';
-import { IrrigationCropProfile } from '../../core/models/irrigation';
-import { IrrigationCalculatorService } from '../../core/services/irrigation-calculator.service';
-import { SensorDataCacheService } from '../../core/services/sensor-data-cache.service';
-import { SensorService } from '../../core/services/sensor.service';
+} from '../../Shared/Models/sensor';
+import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
+import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
+import { SensorDataCacheService } from '../../Shared/Services/sensor-data-cache.service';
+import { SensorService } from '../../Shared/Services/sensor.service';
 import { normalizeHistoryPoints } from './normalize-history';
 import {
   BAND_COLORS,

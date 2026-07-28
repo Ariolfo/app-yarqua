@@ -3,9 +3,9 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular';
 
-import { GeoCity, GeoCountry, GeoDepartment } from '../../core/models/geo';
-import { AuthService } from '../../core/services/auth.service';
-import { GeoService } from '../../core/services/geo.service';
+import { GeoCity, GeoCountry, GeoDepartment } from '../../Shared/Models/geo';
+import { AuthService } from '../../Shared/Services/auth.service';
+import { GeoService } from '../../Shared/Services/geo.service';
 
 @Component({
   selector: 'app-register',

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { Station } from '../models/station';
+import { Station } from '../Models/station';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 

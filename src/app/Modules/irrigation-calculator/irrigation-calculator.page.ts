@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { AlertController, MenuController } from '@ionic/angular';
 
-import { IrrigationCropProfile } from '../../core/models/irrigation';
-import { IrrigationCalculatorService } from '../../core/services/irrigation-calculator.service';
+import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
+import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
 
 @Component({
   selector: 'app-irrigation-calculator',

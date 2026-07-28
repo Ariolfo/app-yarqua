@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
-import { AuthGuard } from './core/guards/auth.guard';
+import { AuthGuard } from './Shared/Guards/auth.guard';
 
 const routes: Routes = [
   {
@@ -12,12 +12,12 @@ const routes: Routes = [
   {
     path: 'splash',
     loadChildren: () =>
-      import('./pages/splash/splash.module').then((m) => m.SplashPageModule),
+      import('./Modules/splash/splash.module').then((m) => m.SplashPageModule),
   },
   {
     path: 'register',
     loadChildren: () =>
-      import('./pages/register/register.module').then(
+      import('./Modules/register/register.module').then(
         (m) => m.RegisterPageModule
       ),
   },
@@ -25,13 +25,13 @@ const routes: Routes = [
     path: 'map',
     canActivate: [AuthGuard],
     loadChildren: () =>
-      import('./pages/map/map.module').then((m) => m.MapPageModule),
+      import('./Modules/map/map.module').then((m) => m.MapPageModule),
   },
   {
     path: 'sensor/:id',
     canActivate: [AuthGuard],
     loadChildren: () =>
-      import('./pages/sensor-detail/sensor-detail.module').then(
+      import('./Modules/sensor-detail/sensor-detail.module').then(
         (m) => m.SensorDetailPageModule
       ),
   },
@@ -39,7 +39,7 @@ const routes: Routes = [
     path: 'irrigation-calculator',
     canActivate: [AuthGuard],
     loadChildren: () =>
-      import('./pages/irrigation-calculator/irrigation-calculator.module').then(
+      import('./Modules/irrigation-calculator/irrigation-calculator.module').then(
         (m) => m.IrrigationCalculatorPageModule
       ),
   },

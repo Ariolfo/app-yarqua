@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { GeoCity, GeoCountry, GeoDepartment } from '../models/geo';
+import { GeoCity, GeoCountry, GeoDepartment } from '../Models/geo';
 import { ApiService } from './api.service';
 
 /**

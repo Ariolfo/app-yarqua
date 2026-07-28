@@ -3,8 +3,8 @@ import {
   targetXLabelCount,
   xLabelIntervalMs,
 } from './moisture-svg-chart';
-import { IrrigationCropProfile } from '../../core/models/irrigation';
-import { HistoryPoint } from '../../core/models/sensor';
+import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
+import { HistoryPoint } from '../../Shared/Models/sensor';
 
 describe('buildMoistureSvgChart', () => {
   const cacao: IrrigationCropProfile = {

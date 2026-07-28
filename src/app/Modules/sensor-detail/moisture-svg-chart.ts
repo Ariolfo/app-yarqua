@@ -1,5 +1,5 @@
-import { HistoryPoint, HistoryRange } from '../../core/models/sensor';
-import { IrrigationCropProfile } from '../../core/models/irrigation';
+import { HistoryPoint, HistoryRange } from '../../Shared/Models/sensor';
+import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
 
 export const CHART_Y_MAX = 70;
 export const SOIL_FLOOR = 10;

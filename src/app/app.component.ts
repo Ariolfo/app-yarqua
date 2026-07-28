@@ -14,7 +14,7 @@ import {
   waterOutline,
 } from 'ionicons/icons';
 
-import { AuthService } from './core/services/auth.service';
+import { AuthService } from './Shared/Services/auth.service';
 
 addIcons({
   'menu-outline': menuOutline,

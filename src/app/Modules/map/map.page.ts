@@ -10,11 +10,11 @@ import { MenuController, ToastController } from '@ionic/angular';
 import * as L from 'leaflet';
 
 import { environment } from '../../../environments/environment';
-import { Sensor } from '../../core/models/sensor';
-import { Station } from '../../core/models/station';
-import { SensorDataCacheService } from '../../core/services/sensor-data-cache.service';
-import { SensorService } from '../../core/services/sensor.service';
-import { StationService } from '../../core/services/station.service';
+import { Sensor } from '../../Shared/Models/sensor';
+import { Station } from '../../Shared/Models/station';
+import { SensorDataCacheService } from '../../Shared/Services/sensor-data-cache.service';
+import { SensorService } from '../../Shared/Services/sensor.service';
+import { StationService } from '../../Shared/Services/station.service';
 
 const CROP_FILTERS = ['Aguacate', 'Cacao', 'Lima', 'Papaya'] as const;
 

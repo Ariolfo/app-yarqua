@@ -8,7 +8,7 @@ import {
   RefreshResponse,
   RegisterRequest,
   User,
-} from '../models/user';
+} from '../Models/user';
 import { ApiService } from './api.service';
 
 const KEY_ACCESS = 'yarqua_access_token';

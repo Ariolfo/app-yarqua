@@ -6,7 +6,7 @@ import {
   HistoryRange,
   Sensor,
   SensorWithHistory,
-} from '../models/sensor';
+} from '../Models/sensor';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { SensorDataCacheService } from './sensor-data-cache.service';

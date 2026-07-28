@@ -1,4 +1,4 @@
-import { HistoryPoint } from '../../core/models/sensor';
+import { HistoryPoint } from '../../Shared/Models/sensor';
 
 /** Normaliza la respuesta del API (camelCase / PascalCase). */
 export function normalizeHistoryPoints(raw: unknown): HistoryPoint[] {

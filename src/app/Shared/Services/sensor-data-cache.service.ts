@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { HistoryPoint, HistoryRange, Sensor } from '../models/sensor';
+import { HistoryPoint, HistoryRange, Sensor } from '../Models/sensor';
 
 /** Entrada de caché con expiración. */
 interface CacheEntry<T> {
