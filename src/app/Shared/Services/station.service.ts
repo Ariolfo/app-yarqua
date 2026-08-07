@@ -18,16 +18,14 @@ export class StationService {
 
   /**
    * Lista estaciones dentro del radio (km) alrededor de lat/lng.
-   * @param lat Latitud WGS84.
-   * @param lng Longitud WGS84.
-   * @param radius Radio en kilómetros (por defecto el de environment).
-   * @param includeSensors Si anida sensores con última lectura.
+   * @param all Si true, incluye todo el catálogo geolocalizado (CO/EC/HN).
    */
   async getNearby(
     lat: number,
     lng: number,
     radius: number = environment.defaultRadiusKm,
-    includeSensors = true
+    includeSensors = true,
+    all = false
   ): Promise<Station[]> {
     const token = await this.auth.getAccessToken();
     return firstValueFrom(
@@ -38,6 +36,7 @@ export class StationService {
           lng,
           radius,
           includeSensors,
+          all,
         },
       })
     );

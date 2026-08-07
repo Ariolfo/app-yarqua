@@ -1,6 +1,8 @@
 import {
   AfterViewInit,
+  ChangeDetectorRef,
   Component,
+  NgZone,
   OnDestroy,
   OnInit,
 } from '@angular/core';
@@ -12,11 +14,10 @@ import * as L from 'leaflet';
 import { environment } from '../../../environments/environment';
 import { Sensor } from '../../Shared/Models/sensor';
 import { Station } from '../../Shared/Models/station';
+import { CropService } from '../../Shared/Services/crop.service';
 import { SensorDataCacheService } from '../../Shared/Services/sensor-data-cache.service';
 import { SensorService } from '../../Shared/Services/sensor.service';
 import { StationService } from '../../Shared/Services/station.service';
-
-const CROP_FILTERS = ['Aguacate', 'Cacao', 'Lima', 'Papaya'] as const;
 
 const STATUS_COLORS: Record<string, string> = {
   excess: '#FB8C00',
@@ -38,12 +39,14 @@ const STATUS_COLORS: Record<string, string> = {
   standalone: false,
 })
 export class MapPage implements OnInit, AfterViewInit, OnDestroy {
-  readonly cropFilters = CROP_FILTERS;
+  cropFilters: string[] = [];
   selectedCrop: string | null = null;
   loading = true;
   error: string | null = null;
   stations: Station[] = [];
   sensors: Sensor[] = [];
+  /** Sensores dentro del viewport actual del mapa (lista debajo). */
+  inViewSensors: Sensor[] = [];
   centerLat = environment.defaultLat;
   centerLng = environment.defaultLng;
   mapLat = environment.defaultLat;
@@ -59,13 +62,16 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     private readonly stationService: StationService,
     private readonly sensorService: SensorService,
     private readonly sensorCache: SensorDataCacheService,
+    private readonly cropService: CropService,
     private readonly router: Router,
     private readonly menuCtrl: MenuController,
-    private readonly toastCtrl: ToastController
+    private readonly toastCtrl: ToastController,
+    private readonly zone: NgZone,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
-  /** Sensores visibles según filtro de cultivo (expuesto al template). */
-  get visibleSensors(): Sensor[] {
+  /** Sensores filtrados por cultivo (marcadores). */
+  get filteredSensors(): Sensor[] {
     return this.sensors.filter((s) => {
       if (s.latitude == null || s.longitude == null) {
         return false;
@@ -74,7 +80,18 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** Lista debajo del mapa: solo sensores en la vista actual. */
+  get visibleSensors(): Sensor[] {
+    return this.inViewSensors;
+  }
+
   async ngOnInit(): Promise<void> {
+    try {
+      const crops = await this.cropService.list();
+      this.cropFilters = crops.map((c) => c.name);
+    } catch {
+      this.cropFilters = ['Aguacate', 'Cacao', 'Lima', 'Papaya'];
+    }
     await this.resolveLocation();
     await this.loadStations();
   }
@@ -101,6 +118,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   selectCrop(crop: string | null): void {
     this.selectedCrop = this.selectedCrop === crop ? null : crop;
     this.renderMarkers();
+    this.syncInViewList();
     setTimeout(() => this.map?.invalidateSize(), 50);
   }
 
@@ -147,19 +165,20 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.loading = true;
     this.error = null;
     try {
+      // Catálogo completo: Colombia, Ecuador y Honduras (no solo radio local).
       this.stations = await this.fetchStations(
         this.centerLat,
         this.centerLng,
-        environment.defaultRadiusKm
+        environment.defaultRadiusKm,
+        true
       );
 
       if (this.flattenSensors(this.stations).length === 0) {
-        // Sensores del catálogo están en el norte del Valle (~Roldanillo).
-        // Si el GPS está en Cali/Palmira, ampliar búsqueda al clúster operativo.
         this.stations = await this.fetchStations(
           environment.defaultLat,
           environment.defaultLng,
-          environment.fallbackRadiusKm
+          environment.fallbackRadiusKm,
+          true
         );
       }
 
@@ -169,6 +188,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       }
       this.renderMarkers();
       this.fitBounds();
+      this.syncInViewList();
     } catch (e) {
       this.error =
         e instanceof Error ? e.message : 'No se pudieron cargar estaciones';
@@ -187,9 +207,10 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private async fetchStations(
     lat: number,
     lng: number,
-    radiusKm: number
+    radiusKm: number,
+    all = false
   ): Promise<Station[]> {
-    return this.stationService.getNearby(lat, lng, radiusKm, true);
+    return this.stationService.getNearby(lat, lng, radiusKm, true, all);
   }
 
   private flattenSensors(stations: Station[]): Sensor[] {
@@ -211,6 +232,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     if (this.map) {
       this.map.invalidateSize();
       this.renderMarkers();
+      this.syncInViewList();
       return;
     }
 
@@ -250,7 +272,11 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.addLayerToggleControl();
 
     this.markersLayer = L.layerGroup().addTo(this.map);
+    this.map.on('moveend zoomend', () => {
+      this.zone.run(() => this.syncInViewList());
+    });
     this.renderMarkers();
+    this.syncInViewList();
     setTimeout(() => this.map?.invalidateSize(), 200);
   }
 
@@ -373,7 +399,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     }
     this.markersLayer.clearLayers();
 
-    const visible = this.visibleSensors;
+    const visible = this.filteredSensors;
     for (const sensor of visible) {
       const [lat, lng] = this.markerPosition(sensor);
       const color = STATUS_COLORS[sensor.status] ?? STATUS_COLORS['deficit'];
@@ -432,11 +458,29 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Actualiza la lista inferior según los límites visibles del mapa.
+   */
+  private syncInViewList(): void {
+    const filtered = this.filteredSensors;
+    if (!this.map) {
+      this.inViewSensors = filtered;
+      this.cdr.markForCheck();
+      return;
+    }
+    const bounds = this.map.getBounds();
+    this.inViewSensors = filtered.filter((sensor) => {
+      const [lat, lng] = this.markerPosition(sensor);
+      return bounds.contains(L.latLng(lat, lng));
+    });
+    this.cdr.markForCheck();
+  }
+
   private fitBounds(): void {
     if (!this.map) {
       return;
     }
-    const pts: L.LatLngExpression[] = this.visibleSensors.map((s) => {
+    const pts: L.LatLngExpression[] = this.filteredSensors.map((s) => {
       const [lat, lng] = this.markerPosition(s);
       return [lat, lng] as L.LatLngExpression;
     });
