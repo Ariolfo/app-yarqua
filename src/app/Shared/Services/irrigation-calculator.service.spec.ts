@@ -1,7 +1,42 @@
 import { IrrigationCalculatorService } from './irrigation-calculator.service';
+import { CropService } from './crop.service';
 
 describe('IrrigationCalculatorService', () => {
-  const service = new IrrigationCalculatorService();
+  const cropService = {
+    asIrrigationProfiles: async () => [
+      {
+        name: 'Aguacate',
+        fieldCapacity: 39,
+        maxIrrigationLimit: 31.2,
+        irrigationDecision: 24.96,
+      },
+      {
+        name: 'Cacao',
+        fieldCapacity: 34,
+        maxIrrigationLimit: 27.2,
+        irrigationDecision: 21.76,
+      },
+      {
+        name: 'Lima',
+        fieldCapacity: 36,
+        maxIrrigationLimit: 28.8,
+        irrigationDecision: 23.04,
+      },
+      {
+        name: 'Papaya',
+        fieldCapacity: 34,
+        maxIrrigationLimit: 27.2,
+        irrigationDecision: 21.76,
+      },
+    ],
+    invalidate: () => undefined,
+  } as unknown as CropService;
+
+  const service = new IrrigationCalculatorService(cropService);
+
+  beforeEach(async () => {
+    await service.loadProfiles();
+  });
 
   it('incluye los valores del Excel para Aguacate', () => {
     const crop = service.cropProfiles[0];

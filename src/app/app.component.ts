@@ -5,12 +5,19 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { MenuController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  addOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
+  flaskOutline,
   helpCircleOutline,
   homeOutline,
+  leafOutline,
   logOutOutline,
   mapOutline,
   menuOutline,
+  radioOutline,
   refreshOutline,
+  settingsOutline,
   waterOutline,
 } from 'ionicons/icons';
 
@@ -24,6 +31,13 @@ addIcons({
   'water-outline': waterOutline,
   'log-out-outline': logOutOutline,
   'help-circle-outline': helpCircleOutline,
+  'radio-outline': radioOutline,
+  'leaf-outline': leafOutline,
+  'add-outline': addOutline,
+  'settings-outline': settingsOutline,
+  'flask-outline': flaskOutline,
+  'chevron-down-outline': chevronDownOutline,
+  'chevron-forward-outline': chevronForwardOutline,
 });
 
 @Component({
@@ -39,6 +53,16 @@ export class AppComponent implements OnInit {
       title: 'Calculadora de riego',
       url: '/irrigation-calculator',
       icon: 'water-outline',
+    },
+  ];
+
+  readonly adminPages = [
+    { title: 'Cultivos', url: '/crops', icon: 'leaf-outline' },
+    { title: 'Sensores', url: '/sensors', icon: 'radio-outline' },
+    {
+      title: 'Métodos para CC',
+      url: '/metodos-cc',
+      icon: 'flask-outline',
     },
   ];
 

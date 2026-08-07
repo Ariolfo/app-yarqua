@@ -53,6 +53,20 @@ export class ApiService {
       );
   }
 
+  /**
+   * Realiza un PUT tipado y devuelve solo el payload `data`.
+   */
+  put<T>(path: string, body: unknown, token?: string | null): Observable<T> {
+    return this.http
+      .put<ApiResponse<T>>(this.url(path), body, {
+        headers: this.headers(token),
+      })
+      .pipe(
+        map((res) => this.unwrap(res)),
+        catchError((err) => this.handleError(err))
+      );
+  }
+
   private url(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
     return `${this.baseUrl}${normalized}`;

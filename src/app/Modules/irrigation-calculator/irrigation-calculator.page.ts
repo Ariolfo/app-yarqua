@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { AlertController, MenuController } from '@ionic/angular';
+import { AlertController, MenuController, NavController } from '@ionic/angular';
 
 import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
 import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
@@ -26,12 +26,15 @@ export class IrrigationCalculatorPage implements OnInit {
   constructor(
     private readonly calculator: IrrigationCalculatorService,
     private readonly alertCtrl: AlertController,
-    private readonly menuCtrl: MenuController
+    private readonly menuCtrl: MenuController,
+    private readonly navCtrl: NavController
   ) {}
 
-  ngOnInit(): void {
-    this.crops = this.calculator.cropProfiles;
-    this.selectCrop(this.crops[0]);
+  async ngOnInit(): Promise<void> {
+    this.crops = await this.calculator.loadProfiles();
+    if (this.crops.length) {
+      this.selectCrop(this.crops[0]);
+    }
   }
 
   /**
@@ -39,6 +42,11 @@ export class IrrigationCalculatorPage implements OnInit {
    */
   async openMenu(): Promise<void> {
     await this.menuCtrl.open('main-menu');
+  }
+
+  /** Vuelve al mapa principal. */
+  async goHome(): Promise<void> {
+    await this.navCtrl.navigateRoot('/map');
   }
 
   /**

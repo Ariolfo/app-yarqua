@@ -6,13 +6,39 @@
       </ion-toolbar>
     </ion-header>
     <ion-content>
-      <ion-list>
+      <ion-list lines="none">
         <ion-menu-toggle auto-hide="false" *ngFor="let p of appPages">
           <ion-item button detail="false" (click)="openPage(p.url)">
             <ion-icon slot="start" [name]="p.icon"></ion-icon>
             <ion-label>{{ p.title }}</ion-label>
           </ion-item>
         </ion-menu-toggle>
+
+        <ion-accordion-group>
+          <ion-accordion value="admin">
+            <ion-item slot="header">
+              <ion-icon slot="start" name="settings-outline"></ion-icon>
+              <ion-label>Admin</ion-label>
+            </ion-item>
+            <div class="admin-items" slot="content">
+              <ion-menu-toggle
+                auto-hide="false"
+                *ngFor="let p of adminPages"
+              >
+                <ion-item
+                  button
+                  detail="false"
+                  class="admin-item"
+                  (click)="openPage(p.url)"
+                >
+                  <ion-icon slot="start" [name]="p.icon"></ion-icon>
+                  <ion-label>{{ p.title }}</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+            </div>
+          </ion-accordion>
+        </ion-accordion-group>
+
         <ion-menu-toggle auto-hide="false">
           <ion-item button detail="false" lines="none" (click)="logout()">
             <ion-icon slot="start" name="log-out-outline"></ion-icon>

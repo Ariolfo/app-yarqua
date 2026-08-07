@@ -1,0 +1,119 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/sensors"></ion-back-button>
+      <ion-button (click)="goHome()" aria-label="Inicio" color="primary">
+        <ion-icon slot="icon-only" name="home-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>{{ pageTitle }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="page">
+  <div *ngIf="loading" class="state">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p>Cargando…</p>
+  </div>
+
+  <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()">
+    <ion-list lines="none" class="form-list">
+      <ion-item class="outlined">
+        <ion-input
+          label="Nombre del sensor"
+          labelPlacement="stacked"
+          formControlName="name"
+          placeholder="Ej. M333-1"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-select
+          label="Red"
+          labelPlacement="stacked"
+          formControlName="networkId"
+          interface="popover"
+          placeholder="Selecciona la red"
+        >
+          <ion-select-option *ngFor="let n of networks" [value]="n.id">
+            {{ n.name }} ({{ n.countryName }})
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-select
+          label="Cultivo"
+          labelPlacement="stacked"
+          formControlName="cropId"
+          interface="popover"
+          placeholder="Opcional"
+        >
+          <ion-select-option [value]="null">Sin cultivo</ion-select-option>
+          <ion-select-option *ngFor="let c of crops" [value]="c.id">
+            {{ c.name }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-input
+          type="number"
+          label="Latitud"
+          labelPlacement="stacked"
+          formControlName="latitude"
+          placeholder="Ej. 4.52198"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-input
+          type="number"
+          label="Longitud"
+          labelPlacement="stacked"
+          formControlName="longitude"
+          placeholder="Ej. -76.07732"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-input
+          label="Estado del sensor"
+          labelPlacement="stacked"
+          formControlName="sensorStatus"
+          placeholder="bueno / desconocido"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-select
+          label="Conectividad"
+          labelPlacement="stacked"
+          formControlName="connectivity"
+          interface="popover"
+        >
+          <ion-select-option value="online">online</ion-select-option>
+          <ion-select-option value="offline">offline</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item class="outlined">
+        <ion-input
+          label="Finca / parcela"
+          labelPlacement="stacked"
+          formControlName="farm"
+          placeholder="Opcional"
+        ></ion-input>
+      </ion-item>
+    </ion-list>
+
+    <div class="actions">
+      <ion-button expand="block" type="submit" [disabled]="saving">
+        {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar sensor' }}
+      </ion-button>
+      <ion-button expand="block" fill="outline" type="button" (click)="cancel()">
+        Cancelar
+      </ion-button>
+    </div>
+  </form>
+</ion-content>

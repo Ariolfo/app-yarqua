@@ -44,6 +44,26 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'sensors',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('./Modules/sensors/sensors.module').then((m) => m.SensorsPageModule),
+  },
+  {
+    path: 'crops',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('./Modules/crops/crops.module').then((m) => m.CropsPageModule),
+  },
+  {
+    path: 'metodos-cc',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('./Modules/metodos-cc/metodos-cc.module').then(
+        (m) => m.MetodosCCPageModule
+      ),
+  },
+  {
     path: 'home',
     redirectTo: 'map',
     pathMatch: 'full',
