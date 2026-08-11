@@ -18,6 +18,6 @@ export class AuthGuard implements CanActivate {
    */
   async canActivate(): Promise<boolean | UrlTree> {
     const ok = await this.auth.hasSession();
-    return ok ? true : this.router.createUrlTree(['/register']);
+    return ok ? true : this.router.createUrlTree(['/login']);
   }
 }

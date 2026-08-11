@@ -1,4 +1,4 @@
-.register-header ion-toolbar {
+.login-header ion-toolbar {
   --background: #ffffff;
   --border-width: 0 0 1px 0;
   --border-color: #e3eaf2;
@@ -11,17 +11,10 @@
   font-size: 1.45rem;
 }
 
-.brand-y {
-  color: #1060c0;
-}
+.brand-y { color: #1060c0; }
+.brand-qua { color: #309020; }
 
-.brand-qua {
-  color: #309020;
-}
-
-.register-content {
-  --background: #ffffff;
-}
+.login-content { --background: #ffffff; }
 
 .hero {
   text-align: center;
@@ -67,20 +60,6 @@
   --border-radius: 12px;
   font-weight: 700;
   min-height: 48px;
-}
-
-.state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2.5rem 1.5rem;
-  text-align: center;
-  color: #546e7a;
-}
-
-.state.error p {
-  color: #c62828;
 }
 
 .switch-link {

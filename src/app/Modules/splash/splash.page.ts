@@ -18,7 +18,7 @@ export class SplashPage implements OnInit {
   async ngOnInit(): Promise<void> {
     await new Promise((r) => setTimeout(r, 1600));
     const hasSession = await this.auth.checkSession();
-    await this.router.navigateByUrl(hasSession ? '/map' : '/register', {
+    await this.router.navigateByUrl(hasSession ? '/map' : '/login', {
       replaceUrl: true,
     });
   }

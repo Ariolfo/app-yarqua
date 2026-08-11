@@ -2,13 +2,17 @@
 export interface User {
   id: string;
   name: string;
-  country: string;
-  department: string;
-  city: string;
+  email: string;
+  roles: string[];
+  country?: string;
+  department?: string;
+  city?: string;
 }
 
 /** Cuerpo de registro. */
 export interface RegisterRequest {
+  email: string;
+  password: string;
   name: string;
   country: string;
   department: string;
@@ -17,7 +21,15 @@ export interface RegisterRequest {
   platform: string;
 }
 
-/** Respuesta de registro. */
+/** Cuerpo de login. */
+export interface LoginRequest {
+  email: string;
+  password: string;
+  deviceId?: string;
+  platform: string;
+}
+
+/** Respuesta de registro / login. */
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;

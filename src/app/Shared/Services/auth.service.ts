@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 
 import {
   AuthResponse,
+  LoginRequest,
   RefreshResponse,
   RegisterRequest,
   User,
@@ -16,7 +17,7 @@ const KEY_REFRESH = 'yarqua_refresh_token';
 const KEY_USER = 'yarqua_user';
 
 /**
- * Autenticación sin contraseña: registro, refresh y persistencia en Preferences.
+ * Autenticación con email y contraseña: registro, login, refresh y persistencia en Preferences.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -29,10 +30,13 @@ export class AuthService {
 
   /**
    * Registra al usuario en el backend y guarda tokens + perfil localmente.
-   * @param payload Datos de registro (nombre y ubicación).
    */
-  async register(payload: Omit<RegisterRequest, 'platform'> & { platform?: string }): Promise<AuthResponse> {
+  async register(
+    payload: Omit<RegisterRequest, 'platform'> & { platform?: string }
+  ): Promise<AuthResponse> {
     const body: RegisterRequest = {
+      email: payload.email.trim().toLowerCase(),
+      password: payload.password,
       name: payload.name.trim(),
       country: payload.country,
       department: payload.department,
@@ -41,7 +45,29 @@ export class AuthService {
       ...(payload.deviceId ? { deviceId: payload.deviceId } : {}),
     };
 
-    const auth = await firstValueFrom(this.api.post<AuthResponse>('/auth/register', body));
+    const auth = await firstValueFrom(
+      this.api.post<AuthResponse>('/auth/register', body)
+    );
+    await this.persistSession(auth.accessToken, auth.refreshToken, auth.user);
+    return auth;
+  }
+
+  /**
+   * Inicia sesión con email y contraseña.
+   */
+  async login(
+    payload: Omit<LoginRequest, 'platform'> & { platform?: string }
+  ): Promise<AuthResponse> {
+    const body: LoginRequest = {
+      email: payload.email.trim().toLowerCase(),
+      password: payload.password,
+      platform: payload.platform ?? this.detectPlatform(),
+      ...(payload.deviceId ? { deviceId: payload.deviceId } : {}),
+    };
+
+    const auth = await firstValueFrom(
+      this.api.post<AuthResponse>('/auth/login', body)
+    );
     await this.persistSession(auth.accessToken, auth.refreshToken, auth.user);
     return auth;
   }
@@ -62,11 +88,7 @@ export class AuthService {
         })
       );
       const nextRefresh = result.refreshToken ?? this.refreshToken;
-      await this.persistSession(
-        result.accessToken,
-        nextRefresh,
-        this.currentUser
-      );
+      await this.persistSession(result.accessToken, nextRefresh, this.currentUser);
       return true;
     } catch {
       return false;

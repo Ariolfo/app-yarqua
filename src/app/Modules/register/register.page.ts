@@ -21,6 +21,7 @@ export class RegisterPage implements OnInit {
   catalogLoading = true;
   catalogError: string | null = null;
   submitting = false;
+  showPassword = false;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -30,6 +31,8 @@ export class RegisterPage implements OnInit {
     private readonly toastCtrl: ToastController
   ) {
     this.form = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
       name: ['', [Validators.required, Validators.minLength(2)]],
       countryId: [null as number | null, Validators.required],
       departmentId: [null as number | null, Validators.required],
@@ -41,9 +44,6 @@ export class RegisterPage implements OnInit {
     await this.loadCountries();
   }
 
-  /**
-   * Carga países y reintenta si hubo error de red.
-   */
   async loadCountries(): Promise<void> {
     this.catalogLoading = true;
     this.catalogError = null;
@@ -66,9 +66,6 @@ export class RegisterPage implements OnInit {
     }
   }
 
-  /**
-   * Al cambiar país, recarga departamentos y limpia ciudad.
-   */
   async onCountryChange(paisId: number | null): Promise<void> {
     this.departments = [];
     this.cities = [];
@@ -92,9 +89,6 @@ export class RegisterPage implements OnInit {
     }
   }
 
-  /**
-   * Al cambiar departamento, recarga ciudades.
-   */
   async onDepartmentChange(depoId: number | null): Promise<void> {
     this.cities = [];
     this.form.patchValue({ cityId: null });
@@ -110,13 +104,10 @@ export class RegisterPage implements OnInit {
     }
   }
 
-  /**
-   * Envía el registro y navega al mapa.
-   */
   async submit(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      await this.showToast('Completa nombre, país, departamento y ciudad.');
+      await this.showToast('Completa todos los campos correctamente.');
       return;
     }
 
@@ -135,6 +126,8 @@ export class RegisterPage implements OnInit {
     this.submitting = true;
     try {
       await this.auth.register({
+        email: this.form.value.email as string,
+        password: this.form.value.password as string,
         name: this.form.value.name as string,
         country: country.name,
         department: department.name,
@@ -148,6 +141,10 @@ export class RegisterPage implements OnInit {
     } finally {
       this.submitting = false;
     }
+  }
+
+  goToLogin(): void {
+    this.router.navigateByUrl('/login');
   }
 
   private async showToast(message: string): Promise<void> {
