@@ -138,6 +138,14 @@ export class AuthService {
   }
 
   /**
+   * Indica si el usuario autenticado tiene el rol Admin.
+   */
+  async isAdmin(): Promise<boolean> {
+    const user = await this.getUser();
+    return !!user?.roles?.includes('Admin');
+  }
+
+  /**
    * Cierra sesión y limpia Preferences.
    */
   async logout(): Promise<void> {

@@ -14,7 +14,7 @@
           </ion-item>
         </ion-menu-toggle>
 
-        <ion-accordion-group>
+        <ion-accordion-group *ngIf="isAdmin">
           <ion-accordion value="admin">
             <ion-item slot="header">
               <ion-icon slot="start" name="settings-outline"></ion-icon>

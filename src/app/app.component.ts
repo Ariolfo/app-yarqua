@@ -8,7 +8,6 @@ import {
   addOutline,
   chevronDownOutline,
   chevronForwardOutline,
-  flaskOutline,
   helpCircleOutline,
   homeOutline,
   leafOutline,
@@ -35,7 +34,6 @@ addIcons({
   'leaf-outline': leafOutline,
   'add-outline': addOutline,
   'settings-outline': settingsOutline,
-  'flask-outline': flaskOutline,
   'chevron-down-outline': chevronDownOutline,
   'chevron-forward-outline': chevronForwardOutline,
 });
@@ -59,12 +57,9 @@ export class AppComponent implements OnInit {
   readonly adminPages = [
     { title: 'Cultivos', url: '/crops', icon: 'leaf-outline' },
     { title: 'Sensores', url: '/sensors', icon: 'radio-outline' },
-    {
-      title: 'Métodos para CC',
-      url: '/metodos-cc',
-      icon: 'flask-outline',
-    },
   ];
+
+  isAdmin = false;
 
   constructor(
     private readonly auth: AuthService,
@@ -73,6 +68,8 @@ export class AppComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
+    this.isAdmin = await this.auth.isAdmin();
+    console.log('isAdmin', this.isAdmin);
     if (!Capacitor.isNativePlatform()) {
       return;
     }

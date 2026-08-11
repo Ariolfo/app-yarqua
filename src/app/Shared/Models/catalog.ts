@@ -49,15 +49,3 @@ export interface CreateCatalogSensorPayload {
   connectivity?: string | null;
   farm?: string | null;
 }
-
-/** Método para determinar capacidad de campo. */
-export interface MetodoCC {
-  id: number;
-  name: string;
-  description?: string | null;
-}
-
-export interface CreateMetodoCCPayload {
-  name: string;
-  description?: string | null;
-}

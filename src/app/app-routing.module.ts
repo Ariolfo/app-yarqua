@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
+import { AdminGuard } from './Shared/Guards/admin.guard';
 import { AuthGuard } from './Shared/Guards/auth.guard';
 
 const routes: Routes = [
@@ -50,23 +51,15 @@ const routes: Routes = [
   },
   {
     path: 'sensors',
-    canActivate: [AuthGuard],
+    canActivate: [AuthGuard, AdminGuard],
     loadChildren: () =>
       import('./Modules/sensors/sensors.module').then((m) => m.SensorsPageModule),
   },
   {
     path: 'crops',
-    canActivate: [AuthGuard],
+    canActivate: [AuthGuard, AdminGuard],
     loadChildren: () =>
       import('./Modules/crops/crops.module').then((m) => m.CropsPageModule),
-  },
-  {
-    path: 'metodos-cc',
-    canActivate: [AuthGuard],
-    loadChildren: () =>
-      import('./Modules/metodos-cc/metodos-cc.module').then(
-        (m) => m.MetodosCCPageModule
-      ),
   },
   {
     path: 'home',
