@@ -67,6 +67,20 @@ export class ApiService {
       );
   }
 
+  /**
+   * Realiza un DELETE tipado y devuelve solo el payload `data`.
+   */
+  delete<T>(path: string, token?: string | null): Observable<T> {
+    return this.http
+      .delete<ApiResponse<T>>(this.url(path), {
+        headers: this.headers(token),
+      })
+      .pipe(
+        map((res) => this.unwrap(res)),
+        catchError((err) => this.handleError(err))
+      );
+  }
+
   private url(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
     return `${this.baseUrl}${normalized}`;

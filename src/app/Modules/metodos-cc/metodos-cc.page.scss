@@ -1,0 +1,30 @@
+.page {
+  --background: #f7fafc;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #546e7a;
+}
+
+.state h2 {
+  margin: 0;
+  font-family: var(--yarqua-font-display);
+  font-weight: 700;
+  color: #1060c0;
+}
+
+.state p {
+  margin: 0;
+  max-width: 18rem;
+}
+
+.hero-icon {
+  font-size: 2.5rem;
+  color: #1060c0;
+}

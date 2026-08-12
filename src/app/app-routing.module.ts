@@ -62,6 +62,22 @@ const routes: Routes = [
       import('./Modules/crops/crops.module').then((m) => m.CropsPageModule),
   },
   {
+    path: 'metodos-cc',
+    canActivate: [AuthGuard, AdminGuard],
+    loadChildren: () =>
+      import('./Modules/metodos-cc/metodos-cc.module').then(
+        (m) => m.MetodosCCPageModule
+      ),
+  },
+  {
+    path: 'admin-users',
+    canActivate: [AuthGuard, AdminGuard],
+    loadChildren: () =>
+      import('./Modules/admin-users/admin-users.module').then(
+        (m) => m.AdminUsersPageModule
+      ),
+  },
+  {
     path: 'home',
     redirectTo: 'map',
     pathMatch: 'full',

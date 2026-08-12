@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
-import { firstValueFrom } from 'rxjs';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
 
 import {
   AuthResponse,
@@ -25,6 +25,10 @@ export class AuthService {
   private refreshToken: string | null = null;
   private currentUser: User | null = null;
   private hydrated = false;
+  private readonly userSubject = new BehaviorSubject<User | null>(null);
+
+  /** Emite el usuario actual (null si no hay sesión). */
+  readonly user$ = this.userSubject.asObservable();
 
   constructor(private readonly api: ApiService) {}
 
@@ -74,7 +78,6 @@ export class AuthService {
 
   /**
    * Renueva el access token usando el refresh token almacenado.
-   * @returns `true` si la sesión se renovó; `false` si no había refresh o falló.
    */
   async refresh(): Promise<boolean> {
     await this.ensureHydrated();
@@ -95,18 +98,11 @@ export class AuthService {
     }
   }
 
-  /**
-   * Indica si hay una sesión válida (access o refresh token presentes).
-   */
   async hasSession(): Promise<boolean> {
     await this.ensureHydrated();
     return !!(this.accessToken || this.refreshToken);
   }
 
-  /**
-   * Comprueba sesión y, si es posible, renueva tokens en segundo plano.
-   * @returns `true` si el usuario puede entrar al mapa.
-   */
   async checkSession(): Promise<boolean> {
     await this.ensureHydrated();
     if (!this.accessToken && !this.refreshToken) {
@@ -121,40 +117,33 @@ export class AuthService {
     return !!this.accessToken;
   }
 
-  /**
-   * Devuelve el access token actual (tras hidratar Preferences).
-   */
   async getAccessToken(): Promise<string | null> {
     await this.ensureHydrated();
     return this.accessToken;
   }
 
-  /**
-   * Devuelve el usuario persistido o `null`.
-   */
   async getUser(): Promise<User | null> {
     await this.ensureHydrated();
     return this.currentUser;
   }
 
-  /**
-   * Indica si el usuario autenticado tiene el rol Admin.
-   */
   async isAdmin(): Promise<boolean> {
     const user = await this.getUser();
-    return !!user?.roles?.includes('Admin');
+    return this.hasAdminRole(user);
   }
 
-  /**
-   * Cierra sesión y limpia Preferences.
-   */
   async logout(): Promise<void> {
     this.accessToken = null;
     this.refreshToken = null;
     this.currentUser = null;
+    this.userSubject.next(null);
     await Preferences.remove({ key: KEY_ACCESS });
     await Preferences.remove({ key: KEY_REFRESH });
     await Preferences.remove({ key: KEY_USER });
+  }
+
+  private hasAdminRole(user: User | null): boolean {
+    return !!user?.roles?.some((r) => r.toLowerCase() === 'admin');
   }
 
   private async persistSession(
@@ -166,6 +155,7 @@ export class AuthService {
     this.refreshToken = refresh;
     this.currentUser = user;
     this.hydrated = true;
+    this.userSubject.next(user);
     await Preferences.set({ key: KEY_ACCESS, value: access });
     await Preferences.set({ key: KEY_REFRESH, value: refresh });
     if (user) {
@@ -192,6 +182,7 @@ export class AuthService {
       }
     }
     this.hydrated = true;
+    this.userSubject.next(this.currentUser);
   }
 
   private detectPlatform(): string {
