@@ -17,19 +17,90 @@
 <ion-content class="calc-content">
   <h2 class="page-title">Calculadora de riego</h2>
 
-  <p class="section-label">Seleccione el cultivo</p>
-  <div class="chip-row">
-    <button
-      type="button"
-      class="crop-chip"
-      *ngFor="let crop of crops"
-      [class.selected]="selectedCrop.name === crop.name"
-      (click)="selectCrop(crop)"
-    >
-      <ion-icon *ngIf="selectedCrop.name === crop.name" name="checkmark-outline"></ion-icon>
-      {{ crop.name }}
-    </button>
-  </div>
+  <p class="section-label">Seleccione o escriba el cultivo</p>
+  <ion-card class="crop-card">
+    <ion-card-content>
+      <ion-item class="field-blue" lines="none">
+        <ion-select
+          label="Cultivo (lista)"
+          labelPlacement="stacked"
+          interface="popover"
+          [value]="cropName"
+          placeholder="Seleccione un cultivo"
+          (ionChange)="onCropSelect($any($event).detail.value)"
+        >
+          <ion-select-option *ngFor="let c of crops" [value]="c.name">
+            {{ c.name }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+      <ion-item class="field-blue" lines="none">
+        <ion-input
+          label="O escriba otro cultivo"
+          labelPlacement="stacked"
+          [ngModel]="cropName"
+          (ngModelChange)="onCropNameTyped($event)"
+          (ionBlur)="onCropNameBlur()"
+          placeholder="Ej. Plátano, Maíz…"
+          list="crop-options"
+        ></ion-input>
+        <datalist id="crop-options">
+          <option *ngFor="let c of crops" [value]="c.name"></option>
+        </datalist>
+      </ion-item>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Historial del cultivo</ion-card-title>
+      <ion-card-subtitle>
+        Registros de humedad guardados para
+        {{ cropName || 'este cultivo' }}.
+      </ion-card-subtitle>
+    </ion-card-header>
+    <ion-card-content>
+      <div *ngIf="historyLoading" class="history-state">
+        <ion-spinner name="crescent" color="primary"></ion-spinner>
+        <p>Cargando historial…</p>
+      </div>
+
+      <div
+        *ngIf="!historyLoading && historyEmptyMessage"
+        class="history-state"
+      >
+        <p>{{ historyEmptyMessage }}</p>
+      </div>
+
+      <div
+        class="history-table-wrap"
+        *ngIf="!historyLoading && history.length"
+      >
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th class="col-day">Día</th>
+              <th class="col-hs">%Hs AM</th>
+              <th class="col-hs">%Hs PM</th>
+              <th class="col-rec">Recomendación</th>
+              <th class="col-rego">Regó?</th>
+              <th class="col-obs">Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of history">
+              <td class="col-day">{{ formatDay(row.consultationDate) }}</td>
+              <td class="col-hs">{{ row.morningMoisture }}</td>
+              <td class="col-hs">{{ row.afternoonMoisture }}</td>
+              <td class="col-rec">{{ row.recommendation }}</td>
+              <td class="col-rego">{{ formatRego(row.irrigationAction) }}</td>
+              <td class="col-obs">{{ row.observation || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ion-card-content>
+  </ion-card>
 
   <ion-card>
     <ion-card-header>
@@ -42,7 +113,8 @@
           label="CC (%)"
           labelPlacement="stacked"
           type="number"
-          [(ngModel)]="fieldCapacity"
+          [ngModel]="fieldCapacity"
+          (ngModelChange)="onFieldCapacityChange($event)"
         ></ion-input>
         <ion-button
           fill="clear"
@@ -62,7 +134,7 @@
         <ion-button
           fill="clear"
           slot="end"
-          (click)="showHelp('Límite máximo de riego', 'Es el 80 % de la capacidad de campo.')"
+          (click)="showHelp('Límite máximo de riego', 'Se estima como el 80 % de la capacidad de campo (0,8 × CC).')"
         >
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
@@ -77,7 +149,7 @@
         <ion-button
           fill="clear"
           slot="end"
-          (click)="showHelp('Decisión de riego', 'Es el 64 % de la capacidad de campo.')"
+          (click)="showHelp('Decisión de riego', 'Se estima como el 64 % de la capacidad de campo (0,64 × CC).')"
         >
           <ion-icon name="help-circle-outline"></ion-icon>
         </ion-button>
@@ -176,4 +248,15 @@
       </ion-item>
     </ion-card-content>
   </ion-card>
+
+  <div class="save-bar">
+    <ion-button
+      expand="block"
+      color="primary"
+      [disabled]="saving"
+      (click)="save()"
+    >
+      {{ saving ? 'Guardando…' : 'Guardar' }}
+    </ion-button>
+  </div>
 </ion-content>

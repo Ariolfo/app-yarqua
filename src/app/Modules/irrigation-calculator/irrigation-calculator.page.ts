@@ -1,7 +1,14 @@
 import { Component, OnInit } from '@angular/core';
-import { AlertController, MenuController, NavController } from '@ionic/angular';
+import {
+  AlertController,
+  MenuController,
+  NavController,
+  ToastController,
+} from '@ionic/angular';
 
+import { IrrigationCalculationRecord } from '../../Shared/Models/irrigation-calculation';
 import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
+import { IrrigationCalculationStoreService } from '../../Shared/Services/irrigation-calculation-store.service';
 import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
 
 @Component({
@@ -12,7 +19,10 @@ import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-ca
 })
 export class IrrigationCalculatorPage implements OnInit {
   crops: readonly IrrigationCropProfile[] = [];
-  selectedCrop!: IrrigationCropProfile;
+  cropName = '';
+  history: IrrigationCalculationRecord[] = [];
+  historyLoading = false;
+  historyEmptyMessage: string | null = null;
 
   fieldCapacity = '';
   maxIrrigationLimit = '';
@@ -22,10 +32,13 @@ export class IrrigationCalculatorPage implements OnInit {
   observation = '';
   irrigationAction: string | null = null;
   consultationDate = new Date().toISOString().slice(0, 10);
+  saving = false;
 
   constructor(
     private readonly calculator: IrrigationCalculatorService,
+    private readonly store: IrrigationCalculationStoreService,
     private readonly alertCtrl: AlertController,
+    private readonly toastCtrl: ToastController,
     private readonly menuCtrl: MenuController,
     private readonly navCtrl: NavController
   ) {}
@@ -33,39 +46,56 @@ export class IrrigationCalculatorPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.crops = await this.calculator.loadProfiles();
     if (this.crops.length) {
-      this.selectCrop(this.crops[0]);
+      await this.applyCropName(this.crops[0].name, true);
     }
   }
 
-  /**
-   * Abre el menú lateral.
-   */
   async openMenu(): Promise<void> {
     await this.menuCtrl.open('main-menu');
   }
 
-  /** Vuelve al mapa principal. */
   async goHome(): Promise<void> {
     await this.navCtrl.navigateRoot('/map');
   }
 
-  /**
-   * Selecciona un cultivo y rellena los parámetros sugeridos.
-   */
-  selectCrop(crop: IrrigationCropProfile): void {
-    this.selectedCrop = crop;
-    this.fieldCapacity = this.formatNumber(crop.fieldCapacity);
-    this.maxIrrigationLimit = this.formatNumber(crop.maxIrrigationLimit);
-    this.irrigationDecision = this.formatNumber(crop.irrigationDecision);
-    this.morningMoisture = '';
-    this.afternoonMoisture = '';
-    this.observation = '';
-    this.irrigationAction = null;
+  /** Selección desde la lista desplegable. */
+  async onCropSelect(name: string | null | undefined): Promise<void> {
+    if (!name) {
+      return;
+    }
+    await this.applyCropName(name, true);
+  }
+
+  /** Actualiza el nombre escrito (otro cultivo). */
+  onCropNameTyped(raw: string | number | null | undefined): void {
+    this.cropName = raw == null ? '' : String(raw);
+  }
+
+  /** Al salir del campo de cultivo, carga historial y defaults si aplica. */
+  async onCropNameBlur(): Promise<void> {
+    const name = this.cropName.trim();
+    if (!name) {
+      this.history = [];
+      this.historyEmptyMessage = null;
+      return;
+    }
+    await this.applyCropName(name, true);
   }
 
   /**
-   * Recomendación actual o null si faltan lecturas válidas.
+   * Si el usuario cambia CC, estima límite máx. (0,8 CC) y decisión (0,64 CC).
    */
+  onFieldCapacityChange(raw: string | number | null | undefined): void {
+    const text = raw == null ? '' : String(raw);
+    this.fieldCapacity = text;
+    const cc = this.parsePercent(text);
+    if (cc == null) {
+      return;
+    }
+    this.maxIrrigationLimit = this.formatNumber(cc * 0.8);
+    this.irrigationDecision = this.formatNumber(cc * 0.64);
+  }
+
   get recommendation(): string | null {
     const morning = this.parsePercent(this.morningMoisture);
     const afternoon = this.parsePercent(this.afternoonMoisture);
@@ -86,9 +116,6 @@ export class IrrigationCalculatorPage implements OnInit {
     return 'result-neutral';
   }
 
-  /**
-   * Muestra ayuda contextual.
-   */
   async showHelp(title: string, message: string): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: title,
@@ -96,6 +123,146 @@ export class IrrigationCalculatorPage implements OnInit {
       buttons: ['Entendido'],
     });
     await alert.present();
+  }
+
+  formatDay(isoDate: string): string {
+    const [y, m, d] = isoDate.split('-');
+    if (!y || !m || !d) {
+      return isoDate;
+    }
+    return `${d}/${m}/${y}`;
+  }
+
+  /** Muestra Sí/No según lo guardado en ¿Realizó el riego? */
+  formatRego(action: string | null | undefined): string {
+    if (!action) {
+      return '—';
+    }
+    const n = action.trim().toLowerCase();
+    if (n === 'sí' || n === 'si') {
+      return 'Sí';
+    }
+    if (n === 'no') {
+      return 'No';
+    }
+    return action;
+  }
+
+  async save(): Promise<void> {
+    const crop = this.cropName.trim();
+    const cc = this.parsePercent(this.fieldCapacity);
+    const maxLimit = this.parsePercent(this.maxIrrigationLimit);
+    const decision = this.parsePercent(this.irrigationDecision);
+    const morning = this.parsePercent(this.morningMoisture);
+    const afternoon = this.parsePercent(this.afternoonMoisture);
+    const recommendation = this.recommendation;
+
+    if (!crop) {
+      await this.toast('Indique el cultivo.', 'warning');
+      return;
+    }
+    if (
+      cc == null ||
+      maxLimit == null ||
+      decision == null ||
+      morning == null ||
+      afternoon == null ||
+      !recommendation
+    ) {
+      await this.toast(
+        'Complete CC, límites y ambas humedades para guardar.',
+        'warning'
+      );
+      return;
+    }
+    if (!this.consultationDate) {
+      await this.toast('Indique la fecha de la consulta.', 'warning');
+      return;
+    }
+
+    this.saving = true;
+    try {
+      await this.store.save({
+        cropName: crop,
+        cropId: null,
+        fieldCapacity: cc,
+        maxIrrigationLimit: maxLimit,
+        irrigationDecision: decision,
+        consultationDate: this.consultationDate,
+        morningMoisture: morning,
+        afternoonMoisture: afternoon,
+        recommendation,
+        irrigationAction: this.irrigationAction,
+        observation: this.observation.trim() || null,
+      });
+
+      await this.toast('Registro guardado.', 'success');
+      this.morningMoisture = '';
+      this.afternoonMoisture = '';
+      this.observation = '';
+      this.irrigationAction = null;
+      this.consultationDate = new Date().toISOString().slice(0, 10);
+      await this.loadHistory(crop);
+    } catch (e) {
+      await this.toast(
+        e instanceof Error ? e.message : 'No se pudo guardar el registro',
+        'danger'
+      );
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  private async applyCropName(
+    name: string,
+    fillDefaultsFromCatalog: boolean
+  ): Promise<void> {
+    this.cropName = name;
+    const profile = this.calculator.getProfile(name);
+    if (fillDefaultsFromCatalog && profile) {
+      this.fieldCapacity = this.formatNumber(profile.fieldCapacity);
+      this.maxIrrigationLimit = this.formatNumber(profile.maxIrrigationLimit);
+      this.irrigationDecision = this.formatNumber(profile.irrigationDecision);
+    } else if (!profile && fillDefaultsFromCatalog) {
+      this.fieldCapacity = '';
+      this.maxIrrigationLimit = '';
+      this.irrigationDecision = '';
+    } else if (profile && !this.fieldCapacity) {
+      this.fieldCapacity = this.formatNumber(profile.fieldCapacity);
+      this.maxIrrigationLimit = this.formatNumber(profile.maxIrrigationLimit);
+      this.irrigationDecision = this.formatNumber(profile.irrigationDecision);
+    }
+
+    this.morningMoisture = '';
+    this.afternoonMoisture = '';
+    this.observation = '';
+    this.irrigationAction = null;
+    this.consultationDate = new Date().toISOString().slice(0, 10);
+    await this.loadHistory(name);
+  }
+
+  private async loadHistory(cropName: string): Promise<void> {
+    this.historyLoading = true;
+    this.historyEmptyMessage = null;
+    try {
+      this.history = await this.store.listByCrop(cropName);
+      if (!this.history.length) {
+        this.historyEmptyMessage = 'No hay datos';
+      }
+    } catch {
+      this.history = [];
+      this.historyEmptyMessage = 'No hay datos';
+    } finally {
+      this.historyLoading = false;
+    }
+  }
+
+  private async toast(
+    message: string,
+    color: 'danger' | 'success' | 'warning'
+  ): Promise<void> {
+    const t = await this.toastCtrl.create({ message, duration: 2500, color });
+    await t.present();
   }
 
   private formatNumber(value: number): string {
