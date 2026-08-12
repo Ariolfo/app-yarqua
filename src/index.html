@@ -7,8 +7,10 @@
     script-src 'self' 'unsafe-inline' 'unsafe-eval';
     style-src 'self' 'unsafe-inline';
     font-src 'self';
-    img-src 'self' data: https://tile.openstreetmap.org https://server.arcgisonline.com;
-    connect-src 'self' http://127.0.0.1:5080 ws://localhost:8100;
+    img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com;
+    connect-src 'self' http://127.0.0.1:5080 http://localhost:5080 https: ws: wss:;
+    worker-src 'self';
+    manifest-src 'self';
     base-uri 'self';
     object-src 'none';" />
   <title>Yarqua</title>
@@ -20,10 +22,17 @@
   <meta name="format-detection" content="telephone=no" />
   <meta name="msapplication-tap-highlight" content="no" />
 
-  <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
-
+  <meta name="theme-color" content="#1060c0" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Yarqua" />
+  <meta name="application-name" content="Yarqua" />
+  <meta name="description" content="Yarqua — riego inteligente (AGROSAVIA)" />
+
+  <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
 </head>
 
 <body>

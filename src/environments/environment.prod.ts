@@ -1,6 +1,6 @@
 /**
- * Configuración de producción.
- * Sustituir `apiBaseUrl` por la URL real del backend desplegado.
+ * Configuración de producción (PWA / hosting web + Capacitor sync).
+ * Sustituir `apiBaseUrl` por la URL HTTPS real del backend desplegado.
  */
 export const environment = {
   production: true,
