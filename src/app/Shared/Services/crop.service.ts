@@ -7,7 +7,7 @@ import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 
 /**
- * Catálogo de cultivos desde la API (tabla YarqtbCultivo).
+ * Catálogo de cultivos desde la API (tabla HidrtbCultivo).
  */
 @Injectable({ providedIn: 'root' })
 export class CropService {

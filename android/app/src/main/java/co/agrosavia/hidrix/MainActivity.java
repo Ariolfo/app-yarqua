@@ -1,4 +1,4 @@
-package co.agrosavia.yarqua;
+package co.agrosavia.hidrix;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -1,4 +1,4 @@
-/** Cultivo del catálogo Yarqua. */
+/** Cultivo del catálogo Hidrix. */
 export interface Crop {
   id: number;
   name: string;
@@ -15,7 +15,7 @@ export interface Network {
   countryName: string;
 }
 
-/** Sensor del catálogo (tabla YarqtbSensor). */
+/** Sensor del catálogo (tabla HidrtbSensor). */
 export interface CatalogSensor {
   id: number;
   name: string;

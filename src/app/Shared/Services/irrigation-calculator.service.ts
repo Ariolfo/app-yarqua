@@ -17,7 +17,7 @@ export class IrrigationCalculatorService {
     return this.profiles;
   }
 
-  /** Carga perfiles desde YarqtbCultivo. */
+  /** Carga perfiles desde HidrtbCultivo. */
   async loadProfiles(force = false): Promise<readonly IrrigationCropProfile[]> {
     if (force) {
       this.crops.invalidate();

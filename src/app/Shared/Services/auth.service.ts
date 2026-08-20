@@ -12,9 +12,9 @@ import {
 } from '../Models/user';
 import { ApiService } from './api.service';
 
-const KEY_ACCESS = 'yarqua_access_token';
-const KEY_REFRESH = 'yarqua_refresh_token';
-const KEY_USER = 'yarqua_user';
+const KEY_ACCESS = 'hidrix_access_token';
+const KEY_REFRESH = 'hidrix_refresh_token';
+const KEY_USER = 'hidrix_user';
 
 /**
  * Autenticación con email y contraseña: registro, login, refresh y persistencia en Preferences.

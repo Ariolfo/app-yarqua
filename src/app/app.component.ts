@@ -149,7 +149,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private async promptPwaReload(): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: 'Actualización disponible',
-      message: 'Hay una nueva versión de Yarqua. ¿Recargar ahora?',
+      message: 'Hay una nueva versión de Hidrix. ¿Recargar ahora?',
       buttons: [
         { text: 'Después', role: 'cancel' },
         {

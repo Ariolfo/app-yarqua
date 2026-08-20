@@ -6,7 +6,7 @@
 }
 
 .wordmark {
-  font-family: var(--yarqua-font-display);
+  font-family: var(--hidrix-font-display);
   font-weight: 700;
   font-size: 1.45rem;
 }
@@ -141,18 +141,18 @@
 }
 
 /* Leaflet DivIcon — pin + etiqueta M###-N */
-:host ::ng-deep .yarqua-marker {
+:host ::ng-deep .hidrix-marker {
   background: transparent;
   border: none;
 }
 
-:host ::ng-deep .yarqua-marker-wrap {
+:host ::ng-deep .hidrix-marker-wrap {
   position: relative;
   width: 80px;
   height: 58px;
 }
 
-:host ::ng-deep .yarqua-marker-dot {
+:host ::ng-deep .hidrix-marker-dot {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -164,7 +164,7 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-:host ::ng-deep .yarqua-marker-label {
+:host ::ng-deep .hidrix-marker-label {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -180,20 +180,20 @@
   line-height: 1.25;
 }
 
-:host ::ng-deep .yarqua-marker-label--above {
+:host ::ng-deep .hidrix-marker-label--above {
   bottom: 34px;
 }
 
-:host ::ng-deep .yarqua-marker-label--below {
+:host ::ng-deep .hidrix-marker-label--below {
   top: 34px;
 }
 
 /* Botón de capa debajo del zoom (+/-) en topleft */
-:host ::ng-deep .leaflet-top.leaflet-left .yarqua-layer-control {
+:host ::ng-deep .leaflet-top.leaflet-left .hidrix-layer-control {
   margin-top: 0;
 }
 
-:host ::ng-deep .yarqua-layer-btn {
+:host ::ng-deep .hidrix-layer-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -209,11 +209,11 @@
   line-height: 1;
 }
 
-:host ::ng-deep .yarqua-layer-btn:hover {
+:host ::ng-deep .hidrix-layer-btn:hover {
   background: #f4f4f4;
 }
 
-:host ::ng-deep .yarqua-layer-btn svg {
+:host ::ng-deep .hidrix-layer-btn svg {
   width: 18px;
   height: 18px;
   fill: currentColor;

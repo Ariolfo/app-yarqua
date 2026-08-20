@@ -1,15 +1,15 @@
-# Yarqua (Ionic)
+# Hidrix (Ionic)
 
-App móvil de **Yarqua** — riego inteligente (FONTAGRO AGRO 4.0 · AGROSAVIA).
+App móvil de **Hidrix** — riego inteligente (FONTAGRO AGRO 4.0 · AGROSAVIA).
 
 Stack: **Ionic 8 + Angular 20 + Capacitor 8** (NgModules).
 
 ## Requisitos
 
 - Node.js **≥ 22** (Capacitor 8)
-- Backend `ws-yarqua` levantado (ver sección siguiente)
+- Backend `ws-hidrix` levantado (ver sección siguiente)
 
-## Backend (ws-yarqua) — el otro lado
+## Backend (ws-hidrix) — el otro lado
 
 La app consume la API en el puerto **5080**. SQL Server (Docker) en **1433**.
 
@@ -19,23 +19,23 @@ La app consume la API en el puerto **5080**. SQL Server (Docker) en **1433**.
 | API base (app) | `http://127.0.0.1:5080/api/v1` |
 | Swagger | `http://localhost:5080/swagger` |
 | Health | `http://localhost:5080/health` |
-| SQL Server | `localhost:1433` · base `dbYarqua` |
+| SQL Server | `localhost:1433` · base `dbHidrix` |
 
 ```bash
-cd ../ws-yarqua   # o la ruta del repo ws-yarqua
+cd ../ws-hidrix   # o la ruta del repo ws-hidrix
 docker compose up -d
 ./database/install.sh
 
 export PATH="$HOME/.dotnet:$PATH"
-dotnet run --project src/Yarqua.Api --launch-profile http
+dotnet run --project src/Hidrix.Api --launch-profile http
 ```
 
-Detalle (secretos, capas, endpoints): ver `ws-yarqua/README.md`.
+Detalle (secretos, capas, endpoints): ver `ws-hidrix/README.md`.
 
 ## Instalación
 
 ```bash
-cd app-yarqua
+cd app-hidrix
 npm install
 ```
 
@@ -85,8 +85,8 @@ npx cap add ios
 npx cap sync
 ```
 
-- **appId:** `co.agrosavia.yarqua`
-- **appName:** `Yarqua`
+- **appId:** `co.agrosavia.hidrix`
+- **appName:** `Hidrix`
 
 ## Pantallas
 
@@ -99,6 +99,46 @@ npx cap sync
 | `/irrigation-calculator` | Calculadora local de riego |
 
 Menú lateral: Mapa, Calculadora de riego, Cerrar sesión.
+
+## Convenciones de color (mapa y detalle de sensor)
+
+Colores usados en pines del mapa, pastilla de estado y bandera de alerta en la vista de datos. Fuente: `map.page.ts` (`STATUS_COLORS`) y `sensor-detail.page.scss`.
+
+### Pines del mapa
+
+| Estado | Color del pin | Hex |
+|--------|---------------|-----|
+| Exceso (`excess` / `saturation`) | Naranja | `#FB8C00` |
+| Atención arriba de CC (`attention_high` / `normal`) | Amarillo ámbar | `#FBC02D` |
+| Regar (`irrigate`) / Atención abajo de CC (`attention_low` / `attention`) | Amarillo | `#FDD835` |
+| Déficit (`deficit`) | Rojo | `#E53935` |
+| Sin datos (`no_data`) | Azul claro | `#90CAF9` |
+| Desconocido | Igual que déficit | `#E53935` |
+
+Estación **sin sensores**: pin verde `#309020`.
+
+### Pastilla de estado (detalle del sensor)
+
+| Estado | Fondo | Texto |
+|--------|-------|-------|
+| Exceso | Naranja `#FB8C00` | Blanco |
+| Atención arriba de CC | Amarillo claro `#FFF9C4` | Negro |
+| Regar / Atención abajo de CC | Amarillo `#FDD835` | Rojo `#C62828` |
+| Déficit | Rojo `#E53935` | Amarillo `#FFEB3B` |
+| Sin datos | Azul pastel `#BBDEFB` | Azul `#1565C0` |
+
+### Bandera de alerta (`ALERTA: …`)
+
+No se muestra cuando el estado es `attention_high` o `normal`.
+
+| Estado | Fondo | Texto |
+|--------|-------|-------|
+| Exceso | Naranja claro `#FFE0B2` | Naranja oscuro `#E65100` |
+| Regar / Atención abajo de CC | Amarillo `#FDD835` | Rojo `#C62828` |
+| Déficit | Rojo `#E53935` | Amarillo `#FFEB3B` |
+| Default | Crema `#FFF3CD` | Café `#8A6D00` |
+
+Textos típicos: **EXCESO**, **REGAR**, **ATENCIÓN: HUMEDAD ABAJO DE CC**, **DÉFICIT** (o el mensaje de la API).
 
 ## Tests
 

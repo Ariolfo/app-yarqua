@@ -245,7 +245,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       shadowUrl: 'assets/leaflet/marker-shadow.png',
     });
 
-    this.map = L.map('yarqua-map', {
+    this.map = L.map('hidrix-map', {
       center: [this.mapLat, this.mapLng],
       zoom: 11,
       zoomControl: true,
@@ -310,11 +310,11 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       onAdd() {
         const container = L.DomUtil.create(
           'div',
-          'leaflet-bar yarqua-layer-control'
+          'leaflet-bar hidrix-layer-control'
         );
         const btn = L.DomUtil.create(
           'button',
-          'yarqua-layer-btn',
+          'hidrix-layer-btn',
           container
         ) as HTMLButtonElement;
         btn.type = 'button';
@@ -366,14 +366,14 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private markerIcon(sensorId: string, color: string, labelBelow: boolean): L.DivIcon {
     const label = this.escapeHtml(sensorId);
     const labelClass = labelBelow
-      ? 'yarqua-marker-label yarqua-marker-label--below'
-      : 'yarqua-marker-label yarqua-marker-label--above';
+      ? 'hidrix-marker-label hidrix-marker-label--below'
+      : 'hidrix-marker-label hidrix-marker-label--above';
     return L.divIcon({
-      className: 'yarqua-marker',
+      className: 'hidrix-marker',
       html:
-        `<div class="yarqua-marker-wrap">` +
+        `<div class="hidrix-marker-wrap">` +
         `<span class="${labelClass}" style="border-color:${color};color:#000000">${label}</span>` +
-        `<span class="yarqua-marker-dot" style="background:${color}"></span>` +
+        `<span class="hidrix-marker-dot" style="background:${color}"></span>` +
         `</div>`,
       iconSize: [80, 58],
       iconAnchor: [40, labelBelow ? 20 : 38],

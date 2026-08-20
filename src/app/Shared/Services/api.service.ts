@@ -7,7 +7,7 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../Models/api-response';
 
 /**
- * Cliente HTTP que habla con la API Yarqua y desempaqueta el sobre
+ * Cliente HTTP que habla con la API Hidrix y desempaqueta el sobre
  * `{ success, message, data }`.
  */
 @Injectable({ providedIn: 'root' })
