@@ -1,9 +1,9 @@
 /**
- * Build PWA pública: service worker + API vía túnel ngrok.
+ * Build PWA pública: API relativa vía proxy (:8300 / ngrok).
  */
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://hidrix.ngrok.app/api/v1',
+  apiBaseUrl: '/api/v1',
   defaultLat: 4.5255,
   defaultLng: -76.0755,
   defaultRadiusKm: 50,

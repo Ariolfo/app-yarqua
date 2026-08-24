@@ -7,6 +7,9 @@ export interface User {
   country?: string;
   department?: string;
   city?: string;
+  countryId?: number | null;
+  departmentId?: number | null;
+  cityId?: number | null;
 }
 
 /** Cuerpo de registro. */

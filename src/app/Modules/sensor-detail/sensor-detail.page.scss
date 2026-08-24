@@ -36,7 +36,7 @@
   margin: 0 auto 0.75rem;
   padding: 0.75rem 1.35rem;
   border-radius: 999px;
-  background: #fff9c4;
+  background: #aed581;
   color: #000000;
   min-width: 140px;
   max-width: 92vw;
@@ -58,29 +58,26 @@
   opacity: 0.95;
 }
 
-/* Exceso: naranja */
-.moisture-pill[data-status='excess'],
-.moisture-pill[data-status='saturation'] {
-  background: #fb8c00;
-  color: #ffffff;
-}
-
-/* Atención (arriba de CC): amarillo claro, letra negra */
-.moisture-pill[data-status='attention_high'],
+/* Normal: verde manzana, letra negra */
 .moisture-pill[data-status='normal'] {
-  background: #fff9c4;
+  background: #aed581;
   color: #000000;
 }
 
-/* Regar y Atención (abajo de CC): amarillo fuerte, letra roja */
-.moisture-pill[data-status='irrigate'],
-.moisture-pill[data-status='attention_low'],
-.moisture-pill[data-status='attention'] {
-  background: #fdd835;
-  color: #c62828;
+/* Drenar: naranja, letra negra */
+.moisture-pill[data-status='drain'],
+.moisture-pill[data-status='excess'],
+.moisture-pill[data-status='saturation'],
+.moisture-pill[data-status='attention_high'] {
+  background: #fb8c00;
+  color: #000000;
 }
 
-/* Déficit: rojo de fondo, letra amarilla */
+/* Regar déficit: rojo, letra amarilla */
+.moisture-pill[data-status='irrigate_deficit'],
+.moisture-pill[data-status='irrigate'],
+.moisture-pill[data-status='attention_low'],
+.moisture-pill[data-status='attention'],
 .moisture-pill[data-status='deficit'] {
   background: #e53935;
   color: #ffeb3b;
@@ -101,23 +98,25 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   text-align: center;
-  background: #fff3cd;
-  color: #8a6d00;
 }
 
+.alert-banner[data-status='normal'] {
+  background: #aed581;
+  color: #000000;
+}
+
+.alert-banner[data-status='drain'],
 .alert-banner[data-status='excess'],
-.alert-banner[data-status='saturation'] {
-  background: #ffe0b2;
-  color: #e65100;
+.alert-banner[data-status='saturation'],
+.alert-banner[data-status='attention_high'] {
+  background: #fb8c00;
+  color: #000000;
 }
 
+.alert-banner[data-status='irrigate_deficit'],
 .alert-banner[data-status='irrigate'],
 .alert-banner[data-status='attention_low'],
-.alert-banner[data-status='attention'] {
-  background: #fdd835;
-  color: #c62828;
-}
-
+.alert-banner[data-status='attention'],
 .alert-banner[data-status='deficit'] {
   background: #e53935;
   color: #ffeb3b;
@@ -182,7 +181,7 @@
   position: relative;
   height: 320px;
   margin: 0.5rem 1rem 0.75rem;
-  padding: 0.35rem;
+  padding: 2rem 0.35rem 0.35rem;
   background: #ffffff;
   border-radius: 14px;
   border: 1px solid #e3eaf2;
@@ -191,12 +190,102 @@
   overflow: hidden;
 }
 
-.moisture-svg {
+.chart-wrap.is-x-zoomed {
+  border-color: #1060c0;
+  box-shadow: 0 4px 16px rgba(16, 96, 192, 0.12);
+}
+
+.chart-y-controls {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.5rem;
+  z-index: 4;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.chart-y-btn {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid #c5d5e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #546e7a;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chart-y-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.chart-y-btn:hover {
+  border-color: #1060c0;
+  color: #1060c0;
+}
+
+.chart-y-btn.active {
+  border-color: #1060c0;
+  color: #1060c0;
+  background: #e8f2fc;
+}
+
+.chart-stage {
   position: relative;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.moisture-svg {
   display: block;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+}
+
+.chart-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.chart-tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+  min-width: 7.25rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(10, 42, 92, 0.94);
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(10, 42, 92, 0.25);
+  font-family: 'KievitOT', sans-serif;
+
+  strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.82rem;
+    color: #c5d8f0;
+    line-height: 1.25;
+  }
 }
 
 .moisture-svg .axis-label {
@@ -295,20 +384,16 @@
   vertical-align: middle;
 }
 
-.swatch.excess {
-  background: rgba(44, 182, 253, 0.85);
+.swatch.deficit-band {
+  background: rgba(229, 57, 53, 0.45);
 }
 
-.swatch.ideal-light {
-  background: rgba(145, 217, 148, 0.57);
-}
-
-.swatch.ideal-dark {
+.swatch.normal-band {
   background: rgba(145, 217, 148, 1);
 }
 
-.swatch.critical {
-  background: rgba(255, 0, 0, 0.35);
+.swatch.drain-band {
+  background: rgba(251, 140, 0, 0.65);
 }
 
 .actions {

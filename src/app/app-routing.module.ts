@@ -50,6 +50,14 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'irrigation-event-notes',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('./Modules/irrigation-event-notes/irrigation-event-notes.module').then(
+        (m) => m.IrrigationEventNotesPageModule
+      ),
+  },
+  {
     path: 'sensors',
     canActivate: [AuthGuard, AdminGuard],
     loadChildren: () =>
@@ -75,6 +83,14 @@ const routes: Routes = [
     loadChildren: () =>
       import('./Modules/admin-users/admin-users.module').then(
         (m) => m.AdminUsersPageModule
+      ),
+  },
+  {
+    path: 'download-events',
+    canActivate: [AuthGuard, AdminGuard],
+    loadChildren: () =>
+      import('./Modules/download-events/download-events.module').then(
+        (m) => m.DownloadEventsPageModule
       ),
   },
   {

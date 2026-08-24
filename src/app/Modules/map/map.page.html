@@ -6,7 +6,7 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="wordmark">
-      <span class="brand-y">Yar</span><span class="brand-qua">qua</span>
+      <span class="brand-primary">Hidr</span><span class="brand-accent">ix</span>
     </ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="refresh()" aria-label="Actualizar" color="primary">
@@ -27,24 +27,30 @@
     <div id="hidrix-map" class="map-host"></div>
   </div>
 
-  <div class="chip-row">
+  <div class="filter-row">
     <button
       type="button"
       class="crop-chip"
       [class.selected]="selectedCrop === null"
-      (click)="selectCrop(null)"
+      (click)="selectAllCrops()"
     >
       Todos
     </button>
-    <button
-      type="button"
-      class="crop-chip"
-      *ngFor="let crop of cropFilters"
-      [class.selected]="selectedCrop === crop"
-      (click)="selectCrop(crop)"
-    >
-      {{ crop }}
-    </button>
+    <ion-item class="crop-select" lines="none">
+      <ion-select
+        label="Cultivo"
+        labelPlacement="stacked"
+        placeholder="Seleccionar cultivo"
+        interface="popover"
+        [value]="selectedCrop"
+        [disabled]="!cropFilters.length"
+        (ionChange)="onCropSelect($any($event).detail.value)"
+      >
+        <ion-select-option *ngFor="let crop of cropFilters" [value]="crop">
+          {{ crop }}
+        </ion-select-option>
+      </ion-select>
+    </ion-item>
   </div>
 
   <div class="module-list" *ngIf="visibleSensors.length; else emptyList">

@@ -9,7 +9,7 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="wordmark">
-      <span class="brand-y">Yar</span><span class="brand-qua">qua</span>
+      <span class="brand-primary">Hidr</span><span class="brand-accent">ix</span>
     </ion-title>
   </ion-toolbar>
 </ion-header>
@@ -17,36 +17,34 @@
 <ion-content class="calc-content">
   <h2 class="page-title">Calculadora de riego</h2>
 
-  <p class="section-label">Seleccione o escriba el cultivo</p>
+  <p class="section-label">Seleccione el cultivo</p>
   <ion-card class="crop-card">
     <ion-card-content>
       <ion-item class="field-blue" lines="none">
         <ion-select
-          label="Cultivo (lista)"
+          label="Cultivo"
           labelPlacement="stacked"
           interface="popover"
-          [value]="cropName"
+          [value]="selectedCrop"
           placeholder="Seleccione un cultivo"
           (ionChange)="onCropSelect($any($event).detail.value)"
         >
           <ion-select-option *ngFor="let c of crops" [value]="c.name">
             {{ c.name }}
           </ion-select-option>
+          <ion-select-option [value]="otherCropValue">
+            {{ otherCropLabel }}
+          </ion-select-option>
         </ion-select>
       </ion-item>
-      <ion-item class="field-blue" lines="none">
+      <ion-item class="field-blue" lines="none" *ngIf="isOtherCropSelected">
         <ion-input
-          label="O escriba otro cultivo"
+          label="Nombre del cultivo"
           labelPlacement="stacked"
-          [ngModel]="cropName"
-          (ngModelChange)="onCropNameTyped($event)"
-          (ionBlur)="onCropNameBlur()"
+          [(ngModel)]="customCropName"
+          (ionBlur)="onCustomCropBlur()"
           placeholder="Ej. Plátano, Maíz…"
-          list="crop-options"
         ></ion-input>
-        <datalist id="crop-options">
-          <option *ngFor="let c of crops" [value]="c.name"></option>
-        </datalist>
       </ion-item>
     </ion-card-content>
   </ion-card>
@@ -56,7 +54,7 @@
       <ion-card-title>Historial del cultivo</ion-card-title>
       <ion-card-subtitle>
         Registros de humedad guardados para
-        {{ cropName || 'este cultivo' }}.
+        {{ displayCropName || 'este cultivo' }}.
       </ion-card-subtitle>
     </ion-card-header>
     <ion-card-content>

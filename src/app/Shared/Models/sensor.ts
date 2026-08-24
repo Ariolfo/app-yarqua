@@ -12,7 +12,7 @@ export interface Sensor {
   stationId: string;
   name: string;
   location: string;
-  /** excess | attention_high | irrigate | attention_low | deficit | no_data */
+  /** normal | drain | irrigate_deficit | no_data */
   status: string;
   lastReadingAt: string;
   readings: Reading[];
@@ -44,4 +44,26 @@ export interface SensorWithHistory {
 /** Estado de navegación opcional desde el mapa hacia el detalle. */
 export interface SensorNavState {
   sensor?: Sensor;
+}
+
+/** Normaliza estados legacy del API a los 3 tonos actuales (+ no_data). */
+export function normalizeMoistureStatus(status: string): string {
+  switch (status) {
+    case 'excess':
+    case 'attention_high':
+    case 'saturation':
+      return 'drain';
+    case 'irrigate':
+    case 'attention_low':
+    case 'attention':
+    case 'deficit':
+      return 'irrigate_deficit';
+    case 'normal':
+    case 'drain':
+    case 'irrigate_deficit':
+    case 'no_data':
+      return status;
+    default:
+      return status;
+  }
 }

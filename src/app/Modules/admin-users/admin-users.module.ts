@@ -10,6 +10,7 @@ import { AdminUsersPage } from './admin-users.page';
 const routes: Routes = [
   { path: '', component: AdminUsersPage },
   { path: 'new', component: AdminUserCreatePage },
+  { path: ':id/edit', component: AdminUserCreatePage },
 ];
 
 @NgModule({

@@ -12,7 +12,7 @@ import { MenuController, ToastController } from '@ionic/angular';
 import * as L from 'leaflet';
 
 import { environment } from '../../../environments/environment';
-import { Sensor } from '../../Shared/Models/sensor';
+import { Sensor, normalizeMoistureStatus } from '../../Shared/Models/sensor';
 import { Station } from '../../Shared/Models/station';
 import { CropService } from '../../Shared/Services/crop.service';
 import { SensorDataCacheService } from '../../Shared/Services/sensor-data-cache.service';
@@ -20,16 +20,18 @@ import { SensorService } from '../../Shared/Services/sensor.service';
 import { StationService } from '../../Shared/Services/station.service';
 
 const STATUS_COLORS: Record<string, string> = {
-  excess: '#FB8C00',
-  attention_high: '#FBC02D',
-  irrigate: '#FDD835',
-  attention_low: '#FDD835',
-  deficit: '#E53935',
+  normal: '#4CAF50',
+  drain: '#FB8C00',
+  irrigate_deficit: '#E53935',
   no_data: '#90CAF9',
-  // Compatibilidad
+  // Compatibilidad con estados legacy
+  excess: '#FB8C00',
+  attention_high: '#FB8C00',
   saturation: '#FB8C00',
-  normal: '#FBC02D',
-  attention: '#FDD835',
+  irrigate: '#E53935',
+  attention_low: '#E53935',
+  attention: '#E53935',
+  deficit: '#E53935',
 };
 
 @Component({
@@ -113,10 +115,22 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Aplica o quita el filtro de cultivo y redibuja marcadores.
+   * Muestra todos los cultivos (sin filtro).
    */
-  selectCrop(crop: string | null): void {
-    this.selectedCrop = this.selectedCrop === crop ? null : crop;
+  selectAllCrops(): void {
+    this.selectedCrop = null;
+    this.applyCropFilter();
+  }
+
+  /**
+   * Filtra el mapa por el cultivo elegido en el selector.
+   */
+  onCropSelect(crop: string): void {
+    this.selectedCrop = crop;
+    this.applyCropFilter();
+  }
+
+  private applyCropFilter(): void {
     this.renderMarkers();
     this.syncInViewList();
     setTimeout(() => this.map?.invalidateSize(), 50);
@@ -402,7 +416,8 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     const visible = this.filteredSensors;
     for (const sensor of visible) {
       const [lat, lng] = this.markerPosition(sensor);
-      const color = STATUS_COLORS[sensor.status] ?? STATUS_COLORS['deficit'];
+      const pinStatus = normalizeMoistureStatus(sensor.status);
+      const color = STATUS_COLORS[pinStatus] ?? STATUS_COLORS['no_data'];
       const labelBelow = this.channelFromId(sensor.id) === 2;
       const marker = L.marker([lat, lng], {
         icon: this.markerIcon(sensor.id, color, labelBelow),

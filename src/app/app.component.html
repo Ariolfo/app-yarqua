@@ -14,6 +14,18 @@
           </ion-item>
         </ion-menu-toggle>
 
+        <ng-container *ngIf="isAdmin">
+          <ion-menu-toggle
+            auto-hide="false"
+            *ngFor="let p of adminAppPages"
+          >
+            <ion-item button detail="false" (click)="openPage(p.url)">
+              <ion-icon slot="start" [name]="p.icon"></ion-icon>
+              <ion-label>{{ p.title }}</ion-label>
+            </ion-item>
+          </ion-menu-toggle>
+        </ng-container>
+
         <ion-accordion-group *ngIf="isAdmin">
           <ion-accordion value="admin">
             <ion-item slot="header">

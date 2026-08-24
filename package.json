@@ -6,7 +6,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build --configuration pwa",
+    "build:dev": "ng build --configuration development",
     "build:prod": "ng build --configuration production",
     "build:pwa": "ng build --configuration pwa",
     "serve:pwa": "npm run build:pwa && npx --yes http-server www -p 8200 -c-1 --cors",

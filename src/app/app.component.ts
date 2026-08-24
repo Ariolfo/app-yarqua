@@ -10,6 +10,8 @@ import {
   chevronBackOutline,
   chevronDownOutline,
   chevronForwardOutline,
+  documentTextOutline,
+  downloadOutline,
   flaskOutline,
   helpCircleOutline,
   homeOutline,
@@ -37,6 +39,8 @@ addIcons({
   'refresh-outline': refreshOutline,
   'map-outline': mapOutline,
   'water-outline': waterOutline,
+  'document-text-outline': documentTextOutline,
+  'download-outline': downloadOutline,
   'log-out-outline': logOutOutline,
   'help-circle-outline': helpCircleOutline,
   'radio-outline': radioOutline,
@@ -66,6 +70,20 @@ export class AppComponent implements OnInit, OnDestroy {
       title: 'Calculadora de riego',
       url: '/irrigation-calculator',
       icon: 'water-outline',
+    },
+    {
+      title: 'Notas evento riego',
+      url: '/irrigation-event-notes',
+      icon: 'document-text-outline',
+    },
+  ];
+
+  /** Visible en el menú principal solo para administradores. */
+  readonly adminAppPages = [
+    {
+      title: 'Descarga eventos riego',
+      url: '/download-events',
+      icon: 'download-outline',
     },
   ];
 

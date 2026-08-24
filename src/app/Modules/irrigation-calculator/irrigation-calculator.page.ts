@@ -7,7 +7,11 @@ import {
 } from '@ionic/angular';
 
 import { IrrigationCalculationRecord } from '../../Shared/Models/irrigation-calculation';
-import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
+import {
+  IrrigationCropProfile,
+  OTHER_CROP_LABEL,
+  OTHER_CROP_VALUE,
+} from '../../Shared/Models/irrigation';
 import { IrrigationCalculationStoreService } from '../../Shared/Services/irrigation-calculation-store.service';
 import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
 
@@ -18,8 +22,12 @@ import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-ca
   standalone: false,
 })
 export class IrrigationCalculatorPage implements OnInit {
+  readonly otherCropValue = OTHER_CROP_VALUE;
+  readonly otherCropLabel = OTHER_CROP_LABEL;
+
   crops: readonly IrrigationCropProfile[] = [];
-  cropName = '';
+  selectedCrop = '';
+  customCropName = '';
   history: IrrigationCalculationRecord[] = [];
   historyLoading = false;
   historyEmptyMessage: string | null = null;
@@ -46,8 +54,16 @@ export class IrrigationCalculatorPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.crops = await this.calculator.loadProfiles();
     if (this.crops.length) {
-      await this.applyCropName(this.crops[0].name, true);
+      await this.onCropSelect(this.crops[0].name);
     }
+  }
+
+  get isOtherCropSelected(): boolean {
+    return this.selectedCrop === OTHER_CROP_VALUE;
+  }
+
+  get displayCropName(): string {
+    return this.resolvedCropName();
   }
 
   async openMenu(): Promise<void> {
@@ -59,27 +75,40 @@ export class IrrigationCalculatorPage implements OnInit {
   }
 
   /** Selección desde la lista desplegable. */
-  async onCropSelect(name: string | null | undefined): Promise<void> {
-    if (!name) {
+  async onCropSelect(value: string | null | undefined): Promise<void> {
+    if (!value) {
       return;
     }
-    await this.applyCropName(name, true);
-  }
 
-  /** Actualiza el nombre escrito (otro cultivo). */
-  onCropNameTyped(raw: string | number | null | undefined): void {
-    this.cropName = raw == null ? '' : String(raw);
-  }
-
-  /** Al salir del campo de cultivo, carga historial y defaults si aplica. */
-  async onCropNameBlur(): Promise<void> {
-    const name = this.cropName.trim();
-    if (!name) {
+    this.selectedCrop = value;
+    if (value === OTHER_CROP_VALUE) {
+      this.customCropName = '';
+      this.fieldCapacity = '';
+      this.maxIrrigationLimit = '';
+      this.irrigationDecision = '';
+      this.morningMoisture = '';
+      this.afternoonMoisture = '';
+      this.observation = '';
+      this.irrigationAction = null;
+      this.consultationDate = new Date().toISOString().slice(0, 10);
       this.history = [];
       this.historyEmptyMessage = null;
       return;
     }
-    await this.applyCropName(name, true);
+
+    this.customCropName = '';
+    await this.applyCropName(value, true);
+  }
+
+  /** Al salir del campo de otro cultivo, carga historial si aplica. */
+  async onCustomCropBlur(): Promise<void> {
+    const name = this.customCropName.trim();
+    if (!this.isOtherCropSelected || !name) {
+      this.history = [];
+      this.historyEmptyMessage = null;
+      return;
+    }
+    await this.loadHistory(name);
   }
 
   /**
@@ -149,7 +178,7 @@ export class IrrigationCalculatorPage implements OnInit {
   }
 
   async save(): Promise<void> {
-    const crop = this.cropName.trim();
+    const crop = this.resolvedCropName();
     const cc = this.parsePercent(this.fieldCapacity);
     const maxLimit = this.parsePercent(this.maxIrrigationLimit);
     const decision = this.parsePercent(this.irrigationDecision);
@@ -213,11 +242,17 @@ export class IrrigationCalculatorPage implements OnInit {
     }
   }
 
+  private resolvedCropName(): string {
+    if (this.isOtherCropSelected) {
+      return this.customCropName.trim();
+    }
+    return this.selectedCrop.trim();
+  }
+
   private async applyCropName(
     name: string,
     fillDefaultsFromCatalog: boolean
   ): Promise<void> {
-    this.cropName = name;
     const profile = this.calculator.getProfile(name);
     if (fillDefaultsFromCatalog && profile) {
       this.fieldCapacity = this.formatNumber(profile.fieldCapacity);

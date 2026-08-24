@@ -5,6 +5,7 @@ import {
   MenuController,
   NavController,
   ToastController,
+  ViewWillEnter,
 } from '@ionic/angular';
 
 import { AuthService } from '../../Shared/Services/auth.service';
@@ -19,7 +20,7 @@ import {
   styleUrls: ['./admin-users.page.scss'],
   standalone: false,
 })
-export class AdminUsersPage implements OnInit {
+export class AdminUsersPage implements OnInit, ViewWillEnter {
   loading = true;
   error: string | null = null;
   admins: AdminUser[] = [];
@@ -38,7 +39,10 @@ export class AdminUsersPage implements OnInit {
   async ngOnInit(): Promise<void> {
     const user = await this.auth.getUser();
     this.currentUserId = user?.id ?? null;
-    await this.load();
+  }
+
+  ionViewWillEnter(): void {
+    void this.load();
   }
 
   async openMenu(): Promise<void> {
@@ -51,6 +55,10 @@ export class AdminUsersPage implements OnInit {
 
   goCreate(): void {
     void this.router.navigateByUrl('/admin-users/new');
+  }
+
+  goEdit(admin: AdminUser): void {
+    void this.router.navigateByUrl(`/admin-users/${admin.id}/edit`);
   }
 
   async load(): Promise<void> {

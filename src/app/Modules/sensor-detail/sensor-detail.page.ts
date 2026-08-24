@@ -13,6 +13,7 @@ import {
   HistoryRange,
   Sensor,
   SensorNavState,
+  normalizeMoistureStatus,
 } from '../../Shared/Models/sensor';
 import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
 import { IrrigationCalculatorService } from '../../Shared/Services/irrigation-calculator.service';
@@ -21,35 +22,37 @@ import { SensorService } from '../../Shared/Services/sensor.service';
 import { normalizeHistoryPoints } from './normalize-history';
 import {
   BAND_COLORS,
-  CHART_Y_MAX,
+  ChartXZoomRange,
+  ChartYScaleMode,
   MoistureSvgChart,
-  SOIL_FLOOR,
+  clampChartXRange,
+  fullChartXRange,
+  isFullChartXRange,
+  resolveChartYRange,
+  scaleChartXRange,
+  SvgPlotPoint,
   buildMoistureSvgChart,
+  nearestPlotPointIndex,
 } from './moisture-svg-chart';
+
+/** Factor de zoom X por paso de rueda (menor = acercar en tiempo). */
+const WHEEL_ZOOM_IN = 0.75;
+const WHEEL_ZOOM_OUT = 1.33;
 
 /** Timeout de carga unificada (alineado bajo el HttpClient Visualiti de 60 s). */
 const BUNDLE_TIMEOUT_MS = 45000;
 
 const STATUS_LABELS: Record<string, string> = {
-  excess: 'Exceso',
-  attention_high: 'Atención: humedad arriba de CC',
-  irrigate: 'Regar',
-  attention_low: 'Atención: humedad abajo de CC',
-  deficit: 'Déficit',
+  normal: 'Normal, No regar',
+  drain: 'Alerta Drenar - saturación',
+  irrigate_deficit: 'Alerta REGAR por déficit',
   no_data: 'Sin datos',
-  saturation: 'Exceso',
-  normal: 'Atención: humedad arriba de CC',
-  attention: 'Regar',
 };
 
 const ALERT_LABELS: Record<string, string> = {
-  excess: 'EXCESO',
-  attention_high: 'ATENCIÓN: HUMEDAD ARRIBA DE CC',
-  irrigate: 'REGAR',
-  attention_low: 'ATENCIÓN: HUMEDAD ABAJO DE CC',
-  deficit: 'DÉFICIT',
-  saturation: 'EXCESO',
-  attention: 'REGAR',
+  normal: 'Normal, No regar',
+  drain: 'Alerta Drenar - saturación',
+  irrigate_deficit: 'Alerta REGAR por déficit',
 };
 
 /**
@@ -81,6 +84,22 @@ export class SensorDetailPage implements OnInit, OnDestroy {
   chartLoading = false;
   chartError: string | null = null;
   cropProfile: IrrigationCropProfile | null = null;
+  /** Escala del eje Y: automática (datos ±5) o fija 0–100. */
+  chartYScale: ChartYScaleMode = 'dynamic';
+  /** Ventana de zoom horizontal (índices en el histórico completo). */
+  private chartXZoom: ChartXZoomRange | null = null;
+  private pinchZoomStart: {
+    distance: number;
+    xRange: ChartXZoomRange;
+    centerIndex: number;
+  } | null = null;
+
+  /** Punto activo al pasar el dedo/cursor sobre la serie. */
+  hoverPoint: SvgPlotPoint | null = null;
+
+  get isChartXZoomed(): boolean {
+    return this.chartXZoom !== null;
+  }
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -130,51 +149,68 @@ export class SensorDetailPage implements OnInit, OnDestroy {
   /** Bandas CSS de respaldo (mismas fórmulas) si aún no hay SVG. */
   get cssBands(): { bottom: string; height: string; color: string }[] {
     const p = this.activeProfile;
-    const toPct = (v: number) => `${(v / CHART_Y_MAX) * 100}%`;
+    const { yMin, yMax } = this.chartYRange;
+    const span = Math.max(1, yMax - yMin);
+    const toPct = (v: number) => `${((v - yMin) / span) * 100}%`;
+    const bandHeight = (from: number, to: number) =>
+      toPct(Math.min(yMax, Math.max(yMin, to)) - Math.max(yMin, from));
+
     return [
-      { bottom: toPct(0), height: toPct(SOIL_FLOOR), color: BAND_COLORS.red },
       {
-        bottom: toPct(SOIL_FLOOR),
-        height: toPct(Math.max(0, p.irrigationDecision - SOIL_FLOOR)),
-        color: BAND_COLORS.greenLight,
+        bottom: toPct(Math.max(yMin, yMin)),
+        height: bandHeight(yMin, p.irrigationDecision),
+        color: BAND_COLORS.red,
       },
       {
-        bottom: toPct(p.irrigationDecision),
-        height: toPct(Math.max(0, p.maxIrrigationLimit - p.irrigationDecision)),
+        bottom: toPct(Math.max(yMin, p.irrigationDecision)),
+        height: bandHeight(p.irrigationDecision, p.maxIrrigationLimit),
         color: BAND_COLORS.greenDark,
       },
       {
-        bottom: toPct(p.maxIrrigationLimit),
-        height: toPct(Math.max(0, p.fieldCapacity - p.maxIrrigationLimit)),
-        color: BAND_COLORS.greenLight,
-      },
-      {
-        bottom: toPct(p.fieldCapacity),
-        height: toPct(Math.max(0, CHART_Y_MAX - p.fieldCapacity)),
-        color: BAND_COLORS.blue,
+        bottom: toPct(Math.max(yMin, p.maxIrrigationLimit)),
+        height: bandHeight(p.maxIrrigationLimit, yMax),
+        color: BAND_COLORS.orange,
       },
     ];
   }
 
+  /** Rango Y del gráfico según la serie visible o el SVG actual. */
+  private get chartYRange(): { yMin: number; yMax: number } {
+    if (this.svgChart) {
+      return { yMin: this.svgChart.yMin, yMax: this.svgChart.yMax };
+    }
+
+    const channel = this.logicalChannel();
+    const values = this.history.map((p) =>
+      channel === 2 ? p.depth30cm : p.depth10cm
+    );
+    if (values.length) {
+      return resolveChartYRange(values, this.chartYScale);
+    }
+
+    const p = this.activeProfile;
+    return resolveChartYRange(
+      [p.irrigationDecision, p.maxIrrigationLimit, p.fieldCapacity],
+      this.chartYScale
+    );
+  }
+
   get bandLegendItems(): { label: string; className: string }[] {
-    const cc = this.activeProfile.fieldCapacity;
     const upper = this.activeProfile.maxIrrigationLimit;
     const lower = this.activeProfile.irrigationDecision;
     return [
-      { label: `Exceso > CC (${cc.toFixed(1)} %)`, className: 'excess' },
       {
-        label: `Límite superior riego ${upper.toFixed(1)}–${cc.toFixed(1)} %`,
-        className: 'ideal-light',
+        label: `Regar déficit < ${lower.toFixed(1)} %`,
+        className: 'deficit-band',
       },
       {
-        label: `Volver a regar ${lower.toFixed(1)}–${upper.toFixed(1)} %`,
-        className: 'ideal-dark',
+        label: `Normal ${lower.toFixed(1)}–${upper.toFixed(1)} %`,
+        className: 'normal-band',
       },
       {
-        label: `Transición ${SOIL_FLOOR}–${lower.toFixed(1)} %`,
-        className: 'ideal-light',
+        label: `Drenar > ${upper.toFixed(1)} %`,
+        className: 'drain-band',
       },
-      { label: `Crítico < ${SOIL_FLOOR} %`, className: 'critical' },
     ];
   }
 
@@ -185,7 +221,7 @@ export class SensorDetailPage implements OnInit, OnDestroy {
     if (this.badgeStatus === 'no_data') {
       return '';
     }
-    return STATUS_LABELS[this.sensor.status] ?? this.sensor.status;
+    return STATUS_LABELS[this.badgeStatus] ?? this.sensor.status;
   }
 
   /** Estado visual del badge (sin lecturas → no_data). */
@@ -193,25 +229,18 @@ export class SensorDetailPage implements OnInit, OnDestroy {
     if (!this.sensor?.readings?.length || this.sensor.status === 'no_data') {
       return 'no_data';
     }
-    return this.sensor.status;
+    return normalizeMoistureStatus(this.sensor.status);
   }
 
-  get alertBanner(): string | null {
-    if (!this.sensor) {
-      return null;
-    }
-    if (
-      this.badgeStatus === 'no_data' ||
-      this.sensor.status === 'attention_high' ||
-      this.sensor.status === 'normal'
-    ) {
+  get alertBannerTitle(): string | null {
+    if (!this.sensor || this.badgeStatus === 'no_data') {
       return null;
     }
     const fromApi = this.sensor.alertMessage?.trim();
     if (fromApi) {
-      return fromApi.replace(/^ALERTA:\s*/i, '').toUpperCase();
+      return fromApi.replace(/^ALERTA:\s*/i, '');
     }
-    return ALERT_LABELS[this.sensor.status] ?? null;
+    return ALERT_LABELS[this.badgeStatus] ?? STATUS_LABELS[this.badgeStatus] ?? null;
   }
 
   get moistureDisplay(): string {
@@ -252,12 +281,194 @@ export class SensorDetailPage implements OnInit, OnDestroy {
     this.range = range;
     this.history = [];
     this.svgChart = null;
+    this.hoverPoint = null;
+    this.chartYScale = 'dynamic';
+    this.clearChartZoom();
     this.cdr.detectChanges();
     await this.loadBundle({ historyOnlyUi: true });
   }
 
+  setChartYScale(mode: ChartYScaleMode): void {
+    if (!this.history.length) {
+      return;
+    }
+    this.chartYScale = mode;
+    this.clearChartZoom();
+    this.hoverPoint = null;
+    this.rebuildChart();
+    this.cdr.detectChanges();
+  }
+
+  onChartWheel(event: WheelEvent): void {
+    const chart = this.svgChart;
+    const host = event.currentTarget as HTMLElement | null;
+    if (!chart || !host) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const local = this.clientToChartPoint(event.clientX, event.clientY, host, chart);
+    if (!local || !this.isInsidePlotX(chart, local.x)) {
+      return;
+    }
+
+    const centerIndex = this.indexFromPlotX(local.x, chart);
+    const zoomOut = event.deltaY > 0;
+    const factor = zoomOut ? WHEEL_ZOOM_OUT : WHEEL_ZOOM_IN;
+    this.applyXZoom(centerIndex, factor);
+  }
+
+  onChartTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      this.beginPinchZoom(event);
+      return;
+    }
+    this.onChartTouch(event);
+  }
+
+  onChartTouchMove(event: TouchEvent): void {
+    if (event.touches.length === 2 && this.pinchZoomStart) {
+      event.preventDefault();
+      this.updatePinchZoom(event);
+      return;
+    }
+    this.onChartTouch(event);
+  }
+
+  onChartTouchEnd(event: TouchEvent): void {
+    if (event.touches.length < 2) {
+      this.pinchZoomStart = null;
+    }
+    if (event.touches.length === 0) {
+      this.clearChartHover();
+    }
+  }
+
   async goMap(): Promise<void> {
     await this.navCtrl.navigateRoot('/map');
+  }
+
+  /**
+   * Actualiza el tooltip al mover el pointer/cursor sobre la capa HTML del chart.
+   */
+  onChartPointer(event: PointerEvent | MouseEvent): void {
+    const chart = this.svgChart;
+    if (!chart?.points.length) {
+      return;
+    }
+
+    const host = event.currentTarget as HTMLElement | null;
+    if (!host) {
+      return;
+    }
+
+    if (event.type === 'pointerdown' && 'pointerId' in event) {
+      try {
+        host.setPointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
+      event.preventDefault();
+    }
+
+    this.updateHoverFromClient(event.clientX, event.clientY, host, chart);
+  }
+
+  /**
+   * Fallback touch (Chrome F12 modo celular a veces prioriza touch sobre pointer).
+   */
+  onChartTouch(event: TouchEvent): void {
+    const chart = this.svgChart;
+    if (!chart?.points.length || !event.touches.length) {
+      return;
+    }
+    const host = event.currentTarget as HTMLElement | null;
+    if (!host) {
+      return;
+    }
+    event.preventDefault();
+    const t = event.touches[0];
+    this.updateHoverFromClient(t.clientX, t.clientY, host, chart);
+  }
+
+  clearChartHover(): void {
+    if (!this.hoverPoint) {
+      return;
+    }
+    this.hoverPoint = null;
+    this.cdr.detectChanges();
+  }
+
+  /** Texto del día para el tooltip (ej. «18 ago 2026»). */
+  formatHoverDay(iso: string): string {
+    return new Date(iso).toLocaleDateString('es', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  /** Hora del punto en el tooltip (ej. «14:30»). */
+  formatHoverTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString('es', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  private updateHoverFromClient(
+    clientX: number,
+    clientY: number,
+    host: HTMLElement,
+    chart: MoistureSvgChart
+  ): void {
+    const local = this.clientToChartPoint(clientX, clientY, host, chart);
+    if (!local) {
+      return;
+    }
+
+    if (local.x < chart.plotLeft - 4 || local.x > chart.plotRight + 4) {
+      return;
+    }
+
+    const idx = nearestPlotPointIndex(chart.points, local.x);
+    if (idx < 0) {
+      return;
+    }
+
+    const next = chart.points[idx];
+    if (
+      this.hoverPoint &&
+      this.hoverPoint.timestamp === next.timestamp &&
+      this.hoverPoint.value === next.value
+    ) {
+      return;
+    }
+    this.hoverPoint = next;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Convierte coordenadas de pantalla a viewBox del chart.
+   * El SVG usa preserveAspectRatio="none" (ocupa todo el stage).
+   */
+  private clientToChartPoint(
+    clientX: number,
+    clientY: number,
+    host: HTMLElement,
+    chart: MoistureSvgChart
+  ): { x: number; y: number } | null {
+    const rect = host.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return null;
+    }
+
+    return {
+      x: ((clientX - rect.left) / rect.width) * chart.width,
+      y: ((clientY - rect.top) / rect.height) * chart.height,
+    };
   }
 
   /**
@@ -342,16 +553,150 @@ export class SensorDetailPage implements OnInit, OnDestroy {
 
   private applyHistory(raw: HistoryPoint[] | unknown): void {
     this.history = normalizeHistoryPoints(raw);
-    this.svgChart = buildMoistureSvgChart(
-      this.history,
-      this.activeProfile,
-      this.logicalChannel(),
-      this.range
-    );
+    this.hoverPoint = null;
+    this.clearChartZoom();
+    this.rebuildChart();
     if (!this.history.length || !this.svgChart) {
       this.chartError = 'Sin lecturas en este rango';
       this.svgChart = null;
     }
+  }
+
+  private rebuildChart(): void {
+    if (!this.history.length) {
+      this.svgChart = null;
+      return;
+    }
+    this.svgChart = buildMoistureSvgChart(
+      this.getVisibleHistory(),
+      this.activeProfile,
+      this.logicalChannel(),
+      this.range,
+      this.chartYScale
+    );
+    if (!this.svgChart) {
+      this.chartError = 'Sin lecturas en este rango';
+    }
+  }
+
+  private getVisibleHistory(): HistoryPoint[] {
+    const n = this.history.length;
+    if (!n || !this.chartXZoom) {
+      return this.history;
+    }
+    const { startIndex, endIndex } = clampChartXRange(
+      this.chartXZoom.startIndex,
+      this.chartXZoom.endIndex,
+      n
+    );
+    return this.history.slice(startIndex, endIndex + 1);
+  }
+
+  private getCurrentXRange(): ChartXZoomRange {
+    const n = this.history.length;
+    if (!n) {
+      return { startIndex: 0, endIndex: 0 };
+    }
+    return this.chartXZoom ?? fullChartXRange(n);
+  }
+
+  private clearChartZoom(): void {
+    this.chartXZoom = null;
+    this.pinchZoomStart = null;
+  }
+
+  private applyXZoom(centerIndex: number, factor: number): void {
+    const n = this.history.length;
+    if (n < 2) {
+      return;
+    }
+
+    const next = scaleChartXRange(
+      this.getCurrentXRange(),
+      centerIndex,
+      factor,
+      n
+    );
+    this.chartXZoom = isFullChartXRange(next, n) ? null : next;
+    this.hoverPoint = null;
+    this.rebuildChart();
+    this.cdr.detectChanges();
+  }
+
+  private beginPinchZoom(event: TouchEvent): void {
+    const chart = this.svgChart;
+    const host = event.currentTarget as HTMLElement | null;
+    if (!chart || !host || event.touches.length < 2) {
+      return;
+    }
+
+    const [t0, t1] = [event.touches[0], event.touches[1]];
+    const distance = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    if (distance <= 0) {
+      return;
+    }
+
+    const midX = (t0.clientX + t1.clientX) / 2;
+    const local = this.clientToChartPoint(midX, 0, host, chart);
+    const centerIndex = local
+      ? this.indexFromPlotX(local.x, chart)
+      : Math.round(
+          (this.getCurrentXRange().startIndex +
+            this.getCurrentXRange().endIndex) /
+            2
+        );
+
+    this.pinchZoomStart = {
+      distance,
+      xRange: this.getCurrentXRange(),
+      centerIndex,
+    };
+    this.hoverPoint = null;
+  }
+
+  private updatePinchZoom(event: TouchEvent): void {
+    const start = this.pinchZoomStart;
+    const n = this.history.length;
+    if (!start || n < 2 || event.touches.length < 2) {
+      return;
+    }
+
+    const [t0, t1] = [event.touches[0], event.touches[1]];
+    const distance = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    if (distance <= 0 || start.distance <= 0) {
+      return;
+    }
+
+    const initialSpan = Math.max(1, start.xRange.endIndex - start.xRange.startIndex);
+    const scale = distance / start.distance;
+    const newSpan = initialSpan / scale;
+    const centerRatio =
+      (start.centerIndex - start.xRange.startIndex) / initialSpan;
+    const startIndex = Math.round(start.centerIndex - centerRatio * newSpan);
+    const endIndex = startIndex + newSpan;
+    const next = clampChartXRange(startIndex, endIndex, n);
+
+    this.chartXZoom = isFullChartXRange(next, n) ? null : next;
+    this.rebuildChart();
+    this.cdr.detectChanges();
+  }
+
+  private indexFromPlotX(svgX: number, chart: MoistureSvgChart): number {
+    const zoom = this.getCurrentXRange();
+    const plotW = chart.plotRight - chart.plotLeft;
+    if (plotW <= 0) {
+      return zoom.startIndex;
+    }
+    const ratio = Math.max(
+      0,
+      Math.min(1, (svgX - chart.plotLeft) / plotW)
+    );
+    const span = Math.max(1, zoom.endIndex - zoom.startIndex);
+    return Math.round(zoom.startIndex + ratio * span);
+  }
+
+  private isInsidePlotX(chart: MoistureSvgChart, svgX: number): boolean {
+    return svgX >= chart.plotLeft && svgX <= chart.plotRight;
   }
 
   private logicalChannel(): 1 | 2 {

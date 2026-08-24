@@ -2,15 +2,180 @@ import { HistoryPoint, HistoryRange } from '../../Shared/Models/sensor';
 import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
 
 export const CHART_Y_MAX = 70;
+export const CHART_Y_FULL_MIN = 0;
+export const CHART_Y_FULL_MAX = 100;
 export const SOIL_FLOOR = 10;
+/** Margen inferior/superior del eje Y respecto al min/max de la serie. */
+export const CHART_Y_PADDING = 5;
+
+/** Escala vertical del gráfico. */
+export type ChartYScaleMode = 'dynamic' | 'full';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Rango vertical fijo 0–100 %. */
+export function computeFullChartYRange(): { yMin: number; yMax: number } {
+  return { yMin: CHART_Y_FULL_MIN, yMax: CHART_Y_FULL_MAX };
+}
+
+/** Rango vertical del gráfico: min−5 … max+5 (mínimo 0 en el eje). */
+export function computeChartYRange(values: readonly number[]): {
+  yMin: number;
+  yMax: number;
+} {
+  if (!values.length) {
+    return { yMin: CHART_Y_FULL_MIN, yMax: CHART_Y_MAX };
+  }
+
+  const dataMin = Math.min(...values);
+  const dataMax = Math.max(...values);
+  let yMin = Math.max(0, dataMin - CHART_Y_PADDING);
+  let yMax = dataMax + CHART_Y_PADDING;
+
+  if (yMax <= yMin) {
+    yMax = yMin + 10;
+  }
+
+  return { yMin, yMax };
+}
+
+/** Resuelve el rango Y según el modo seleccionado. */
+export function resolveChartYRange(
+  values: readonly number[],
+  mode: ChartYScaleMode
+): { yMin: number; yMax: number } {
+  if (mode === 'full') {
+    return computeFullChartYRange();
+  }
+  return computeChartYRange(values);
+}
+
+/** Límites del zoom horizontal (eje X / tiempo). */
+export const CHART_X_ZOOM_MIN_POINTS = 2;
+
+export interface ChartXZoomRange {
+  startIndex: number;
+  endIndex: number;
+}
+
+/** Rango X completo para N puntos. */
+export function fullChartXRange(pointCount: number): ChartXZoomRange {
+  if (pointCount <= 0) {
+    return { startIndex: 0, endIndex: 0 };
+  }
+  return { startIndex: 0, endIndex: pointCount - 1 };
+}
+
+/** Indica si el rango X cubre todo el histórico. */
+export function isFullChartXRange(
+  range: ChartXZoomRange,
+  pointCount: number
+): boolean {
+  if (pointCount <= 1) {
+    return true;
+  }
+  return range.startIndex <= 0 && range.endIndex >= pointCount - 1;
+}
+
+/** Acota índices del zoom X con mínimo de puntos visibles. */
+export function clampChartXRange(
+  startIndex: number,
+  endIndex: number,
+  pointCount: number
+): ChartXZoomRange {
+  if (pointCount <= 0) {
+    return { startIndex: 0, endIndex: 0 };
+  }
+  if (pointCount === 1) {
+    return { startIndex: 0, endIndex: 0 };
+  }
+
+  let start = Math.max(0, Math.min(startIndex, pointCount - 1));
+  let end = Math.max(0, Math.min(endIndex, pointCount - 1));
+  if (start > end) {
+    [start, end] = [end, start];
+  }
+
+  const minSpan = CHART_X_ZOOM_MIN_POINTS - 1;
+  if (end - start < minSpan) {
+    const center = Math.round((start + end) / 2);
+    start = Math.max(0, center - Math.floor(minSpan / 2));
+    end = start + minSpan;
+    if (end >= pointCount) {
+      end = pointCount - 1;
+      start = Math.max(0, end - minSpan);
+    }
+  }
+
+  return { startIndex: start, endIndex: end };
+}
+
+/**
+ * Escala el rango X respecto a un índice central.
+ * factor &lt; 1 acerca (menos puntos); factor &gt; 1 aleja.
+ */
+export function scaleChartXRange(
+  range: ChartXZoomRange,
+  centerIndex: number,
+  factor: number,
+  pointCount: number
+): ChartXZoomRange {
+  if (pointCount <= 1) {
+    return fullChartXRange(pointCount);
+  }
+
+  const span = Math.max(1, range.endIndex - range.startIndex);
+  const newSpan = Math.max(1, Math.round(span * factor));
+  const clampedCenter = Math.max(
+    range.startIndex,
+    Math.min(range.endIndex, centerIndex)
+  );
+  const centerRatio =
+    span > 0 ? (clampedCenter - range.startIndex) / span : 0.5;
+  const startIndex = Math.round(clampedCenter - centerRatio * newSpan);
+  const endIndex = startIndex + newSpan;
+  return clampChartXRange(startIndex, endIndex, pointCount);
+}
+
+function buildYTicks(
+  yMin: number,
+  yMax: number,
+  yToPx: (value: number) => number
+): SvgTick[] {
+  const span = yMax - yMin;
+  const rawStep = span / 6;
+  let step = 5;
+  if (rawStep > 20) {
+    step = 10;
+  } else if (rawStep > 10) {
+    step = 5;
+  } else if (rawStep > 4) {
+    step = 2;
+  } else {
+    step = 1;
+  }
+
+  const start = Math.ceil(yMin / step) * step;
+  const ticks: SvgTick[] = [];
+  for (let v = start; v <= yMax + step * 0.001; v += step) {
+    ticks.push({
+      y: yToPx(v),
+      label: Number.isInteger(v) ? String(v) : v.toFixed(1),
+    });
+  }
+
+  if (!ticks.length) {
+    ticks.push({ y: yToPx(yMin), label: String(Math.round(yMin)) });
+    ticks.push({ y: yToPx(yMax), label: String(Math.round(yMax)) });
+  }
+
+  return ticks;
+}
+
 export const BAND_COLORS = {
-  red: 'rgba(255, 0, 0, 0.09)',
-  greenLight: 'rgba(145, 217, 148, 0.57)',
+  red: 'rgba(229, 57, 53, 0.35)',
   greenDark: 'rgba(145, 217, 148, 1)',
-  blue: 'rgba(44, 182, 253, 0.39)',
+  orange: 'rgba(251, 140, 0, 0.45)',
 } as const;
 
 export interface SvgBand {
@@ -32,6 +197,14 @@ export interface SvgXLabel {
   transform: string;
 }
 
+/** Punto de la serie en coordenadas SVG (para tooltip al pasar el dedo/cursor). */
+export interface SvgPlotPoint {
+  x: number;
+  y: number;
+  value: number;
+  timestamp: string;
+}
+
 export interface MoistureSvgChart {
   width: number;
   height: number;
@@ -42,9 +215,15 @@ export interface MoistureSvgChart {
   bands: SvgBand[];
   yTicks: SvgTick[];
   xLabels: SvgXLabel[];
+  /** Puntos de la curva (mismo orden que el histórico). */
+  points: SvgPlotPoint[];
   linePath: string;
   yTitleX: number;
   yTitleY: number;
+  /** Límite inferior del eje Y (% humedad). */
+  yMin: number;
+  /** Límite superior del eje Y (% humedad). */
+  yMax: number;
 }
 
 /**
@@ -188,7 +367,8 @@ export function buildMoistureSvgChart(
   history: HistoryPoint[],
   profile: IrrigationCropProfile,
   channel: 1 | 2,
-  range?: HistoryRange
+  range?: HistoryRange,
+  yScaleMode: ChartYScaleMode = 'dynamic'
 ): MoistureSvgChart | null {
   if (!history.length) {
     return null;
@@ -204,15 +384,25 @@ export function buildMoistureSvgChart(
   const plotW = plotRight - plotLeft;
   const plotH = plotBottom - plotTop;
 
+  const seriesValues = history.map((p) =>
+    channel === 2 ? p.depth30cm : p.depth10cm
+  );
+  const { yMin, yMax } = resolveChartYRange(seriesValues, yScaleMode);
+  const ySpan = yMax - yMin;
+
   const yToPx = (value: number) =>
-    plotTop + ((CHART_Y_MAX - value) / CHART_Y_MAX) * plotH;
+    plotTop + ((yMax - value) / ySpan) * plotH;
+
+  const clipBand = (min: number, max: number) => ({
+    min: Math.max(yMin, min),
+    max: Math.min(yMax, max),
+  });
 
   const bandsSrc = [
-    { min: 0, max: SOIL_FLOOR, color: BAND_COLORS.red },
     {
-      min: SOIL_FLOOR,
+      min: yMin,
       max: profile.irrigationDecision,
-      color: BAND_COLORS.greenLight,
+      color: BAND_COLORS.red,
     },
     {
       min: profile.irrigationDecision,
@@ -221,39 +411,36 @@ export function buildMoistureSvgChart(
     },
     {
       min: profile.maxIrrigationLimit,
-      max: profile.fieldCapacity,
-      color: BAND_COLORS.greenLight,
-    },
-    {
-      min: profile.fieldCapacity,
-      max: CHART_Y_MAX,
-      color: BAND_COLORS.blue,
+      max: yMax,
+      color: BAND_COLORS.orange,
     },
   ];
 
-  const bands: SvgBand[] = bandsSrc.map((b) => {
-    const yTop = yToPx(b.max);
-    const yBottom = yToPx(b.min);
-    return {
+  const bands: SvgBand[] = [];
+  for (const b of bandsSrc) {
+    const clipped = clipBand(b.min, b.max);
+    if (clipped.max <= clipped.min) {
+      continue;
+    }
+    const yTop = yToPx(clipped.max);
+    const yBottom = yToPx(clipped.min);
+    bands.push({
       y: yTop,
       height: Math.max(0, yBottom - yTop),
       color: b.color,
-    };
-  });
+    });
+  }
 
-  const yTicks: SvgTick[] = [0, 10, 20, 30, 40, 50, 60, 70].map((v) => ({
-    y: yToPx(v),
-    label: String(v),
-  }));
+  const yTicks = buildYTicks(yMin, yMax, yToPx);
 
   const n = history.length;
   const xLabels = buildXLabels(history, plotLeft, plotW, plotBottom, range);
 
-  const points = history.map((p, i) => {
+  const points: SvgPlotPoint[] = history.map((p, i) => {
     const value = channel === 2 ? p.depth30cm : p.depth10cm;
     const x = plotLeft + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-    const y = yToPx(Math.min(CHART_Y_MAX, Math.max(0, value)));
-    return { x, y };
+    const y = yToPx(Math.min(yMax, Math.max(yMin, value)));
+    return { x, y, value, timestamp: p.timestamp };
   });
 
   const linePath = points
@@ -270,8 +457,33 @@ export function buildMoistureSvgChart(
     bands,
     yTicks,
     xLabels,
+    points,
     linePath,
     yTitleX: 14,
     yTitleY: (plotTop + plotBottom) / 2,
+    yMin,
+    yMax,
   };
+}
+
+/**
+ * Índice del punto de la serie más cercano a la coordenada X del pointer (viewBox).
+ */
+export function nearestPlotPointIndex(
+  points: SvgPlotPoint[],
+  svgX: number
+): number {
+  if (!points.length) {
+    return -1;
+  }
+  let best = 0;
+  let bestDist = Math.abs(points[0].x - svgX);
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.abs(points[i].x - svgX);
+    if (d < bestDist) {
+      best = i;
+      bestDist = d;
+    }
+  }
+  return best;
 }

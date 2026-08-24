@@ -10,6 +10,7 @@ import {
   RegisterRequest,
   User,
 } from '../Models/user';
+import { UserLocation } from '../Models/geo';
 import { ApiService } from './api.service';
 
 const KEY_ACCESS = 'hidrix_access_token';
@@ -108,23 +109,77 @@ export class AuthService {
     if (!this.accessToken && !this.refreshToken) {
       return false;
     }
-    if (this.refreshToken) {
-      const ok = await this.refresh();
-      if (ok) {
-        return true;
-      }
+    if (this.shouldRefreshAccessToken()) {
+      return this.refresh();
     }
     return !!this.accessToken;
   }
 
   async getAccessToken(): Promise<string | null> {
     await this.ensureHydrated();
+    if (!this.accessToken && !this.refreshToken) {
+      return null;
+    }
+    if (this.shouldRefreshAccessToken()) {
+      const ok = await this.refresh();
+      if (!ok) {
+        return null;
+      }
+    }
     return this.accessToken;
+  }
+
+  /** Renueva la sesión si hace falta y devuelve un access token válido. */
+  async getValidAccessToken(): Promise<string | null> {
+    return this.getAccessToken();
   }
 
   async getUser(): Promise<User | null> {
     await this.ensureHydrated();
     return this.currentUser;
+  }
+
+  /** Ubicación del usuario (país, departamento y ciudad del catálogo). */
+  async getUserLocation(): Promise<UserLocation | null> {
+    const user = await this.getUser();
+    if (
+      user?.countryId != null &&
+      user?.departmentId != null &&
+      user?.cityId != null
+    ) {
+      return {
+        countryId: user.countryId,
+        departmentId: user.departmentId,
+        cityId: user.cityId,
+        countryName: user.country ?? null,
+        departmentName: user.department ?? null,
+        cityName: user.city ?? null,
+      };
+    }
+
+    const token = await this.getValidAccessToken();
+    if (!token) {
+      return null;
+    }
+    try {
+      const location = await firstValueFrom(
+        this.api.get<UserLocation>('/auth/location', { token })
+      );
+      if (user && location && this.refreshToken) {
+        await this.persistSession(token, this.refreshToken, {
+          ...user,
+          countryId: location.countryId,
+          departmentId: location.departmentId,
+          cityId: location.cityId,
+          country: location.countryName ?? user.country,
+          department: location.departmentName ?? user.department,
+          city: location.cityName ?? user.city,
+        });
+      }
+      return location;
+    } catch {
+      return null;
+    }
   }
 
   async isAdmin(): Promise<boolean> {
@@ -191,5 +246,30 @@ export class AuthService {
       return p;
     }
     return 'web';
+  }
+
+  /** true si no hay access token o está por expirar (renovar con refresh). */
+  private shouldRefreshAccessToken(): boolean {
+    if (!this.accessToken) {
+      return !!this.refreshToken;
+    }
+    return this.isJwtExpired(this.accessToken, 60);
+  }
+
+  private isJwtExpired(token: string, skewSeconds: number): boolean {
+    try {
+      const payloadPart = token.split('.')[1];
+      if (!payloadPart) {
+        return true;
+      }
+      const json = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
+      const payload = JSON.parse(json) as { exp?: number };
+      if (typeof payload.exp !== 'number') {
+        return false;
+      }
+      return Date.now() / 1000 >= payload.exp - skewSeconds;
+    } catch {
+      return true;
+    }
   }
 }

@@ -19,3 +19,13 @@ export interface GeoCity {
   name: string;
   depoId: number;
 }
+
+/** Ubicación del usuario autenticado (ids del catálogo). */
+export interface UserLocation {
+  countryId: number | null;
+  departmentId: number | null;
+  cityId: number | null;
+  countryName: string | null;
+  departmentName: string | null;
+  cityName: string | null;
+}

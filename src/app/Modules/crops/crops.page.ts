@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { MenuController, NavController, ToastController } from '@ionic/angular';
+import { MenuController, NavController, ToastController, ViewWillEnter } from '@ionic/angular';
 
 import { Crop } from '../../Shared/Models/catalog';
 import { CropService } from '../../Shared/Services/crop.service';
@@ -11,7 +11,7 @@ import { CropService } from '../../Shared/Services/crop.service';
   styleUrls: ['./crops.page.scss'],
   standalone: false,
 })
-export class CropsPage implements OnInit {
+export class CropsPage implements OnInit, ViewWillEnter {
   loading = true;
   error: string | null = null;
   crops: Crop[] = [];
@@ -25,7 +25,11 @@ export class CropsPage implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await this.load();
+    // La carga ocurre en ionViewWillEnter al entrar o volver a la lista.
+  }
+
+  ionViewWillEnter(): void {
+    void this.load();
   }
 
   async openMenu(): Promise<void> {

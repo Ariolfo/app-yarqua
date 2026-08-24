@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { MenuController, NavController, ToastController } from '@ionic/angular';
+import { MenuController, NavController, ToastController, ViewWillEnter } from '@ionic/angular';
 
 import { CatalogSensor } from '../../Shared/Models/catalog';
 import { CatalogSensorService } from '../../Shared/Services/catalog-sensor.service';
@@ -21,7 +21,7 @@ interface NetworkGroup {
   styleUrls: ['./sensors.page.scss'],
   standalone: false,
 })
-export class SensorsPage implements OnInit {
+export class SensorsPage implements OnInit, ViewWillEnter {
   loading = true;
   error: string | null = null;
   groups: CountryGroup[] = [];
@@ -35,7 +35,11 @@ export class SensorsPage implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await this.load();
+    // La carga ocurre en ionViewWillEnter al entrar o volver a la lista.
+  }
+
+  ionViewWillEnter(): void {
+    void this.load();
   }
 
   async openMenu(): Promise<void> {

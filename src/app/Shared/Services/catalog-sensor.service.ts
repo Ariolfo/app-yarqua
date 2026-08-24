@@ -56,4 +56,11 @@ export class CatalogSensorService {
       this.api.put<CatalogSensor>(`/catalog/sensors/${id}`, payload, token)
     );
   }
+
+  async remove(id: number): Promise<void> {
+    const token = await this.auth.getAccessToken();
+    await firstValueFrom(
+      this.api.delete<{ ok: boolean }>(`/catalog/sensors/${id}`, token)
+    );
+  }
 }

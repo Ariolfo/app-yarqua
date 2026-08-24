@@ -34,7 +34,7 @@
     </div>
 
     <ion-list>
-      <ion-item *ngFor="let a of admins" lines="full">
+      <ion-item *ngFor="let a of admins" lines="full" button (click)="goEdit(a)">
         <ion-label>
           <h2>{{ a.name }}</h2>
           <p>{{ a.email }}</p>
@@ -47,7 +47,7 @@
           <ion-button
             fill="clear"
             color="medium"
-            (click)="toggleActive(a)"
+            (click)="toggleActive(a); $event.stopPropagation()"
             [attr.aria-label]="a.active ? 'Inactivar' : 'Activar'"
           >
             <ion-icon
@@ -58,7 +58,7 @@
           <ion-button
             fill="clear"
             color="danger"
-            (click)="confirmDelete(a)"
+            (click)="confirmDelete(a); $event.stopPropagation()"
             [disabled]="isSelf(a)"
             aria-label="Eliminar"
           >

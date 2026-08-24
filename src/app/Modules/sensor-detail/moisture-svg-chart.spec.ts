@@ -1,10 +1,61 @@
 import {
   buildMoistureSvgChart,
+  clampChartXRange,
+  computeChartYRange,
+  computeFullChartYRange,
+  fullChartXRange,
+  nearestPlotPointIndex,
+  scaleChartXRange,
   targetXLabelCount,
   xLabelIntervalMs,
 } from './moisture-svg-chart';
 import { IrrigationCropProfile } from '../../Shared/Models/irrigation';
 import { HistoryPoint } from '../../Shared/Models/sensor';
+
+describe('computeChartYRange', () => {
+  it('aplica ±5 al min/max de la serie', () => {
+    expect(computeChartYRange([23, 44])).toEqual({ yMin: 18, yMax: 49 });
+  });
+});
+
+describe('computeFullChartYRange', () => {
+  it('fija el eje Y en 0–100', () => {
+    expect(computeFullChartYRange()).toEqual({ yMin: 0, yMax: 100 });
+  });
+});
+
+describe('clampChartXRange', () => {
+  it('limita índices y mantiene al menos 2 puntos', () => {
+    expect(clampChartXRange(-2, 1, 10)).toEqual({
+      startIndex: 0,
+      endIndex: 1,
+    });
+    expect(clampChartXRange(8, 15, 10)).toEqual({
+      startIndex: 8,
+      endIndex: 9,
+    });
+  });
+});
+
+describe('scaleChartXRange', () => {
+  it('reduce el span temporal al acercar', () => {
+    const next = scaleChartXRange(
+      { startIndex: 0, endIndex: 9 },
+      5,
+      0.5,
+      10
+    );
+    expect(next.endIndex - next.startIndex).toBeLessThan(9);
+    expect(next.startIndex).toBeGreaterThanOrEqual(0);
+    expect(next.endIndex).toBeLessThanOrEqual(9);
+  });
+});
+
+describe('fullChartXRange', () => {
+  it('cubre todo el histórico', () => {
+    expect(fullChartXRange(7)).toEqual({ startIndex: 0, endIndex: 6 });
+  });
+});
 
 describe('buildMoistureSvgChart', () => {
   const cacao: IrrigationCropProfile = {
@@ -30,17 +81,43 @@ describe('buildMoistureSvgChart', () => {
     expect(buildMoistureSvgChart([], cacao, 1)).toBeNull();
   });
 
+  it('en modo full usa eje Y 0–100', () => {
+    const chart = buildMoistureSvgChart(
+      [
+        {
+          timestamp: '2026-07-24T14:00:00+00:00',
+          depth10cm: 15,
+          depth30cm: 51,
+        },
+        {
+          timestamp: '2026-07-25T14:00:00+00:00',
+          depth10cm: 25,
+          depth30cm: 48,
+        },
+      ],
+      cacao,
+      1,
+      '7d',
+      'full'
+    );
+
+    expect(chart).not.toBeNull();
+    expect(chart!.yMin).toBe(0);
+    expect(chart!.yMax).toBe(100);
+    expect(chart!.bands.length).toBe(3);
+  });
+
   it('genera ejes, bandas y path con datos reales', () => {
     const chart = buildMoistureSvgChart(
       [
         {
           timestamp: '2026-07-24T14:00:00+00:00',
-          depth10cm: 53,
+          depth10cm: 15,
           depth30cm: 51,
         },
         {
           timestamp: '2026-07-25T14:00:00+00:00',
-          depth10cm: 50,
+          depth10cm: 25,
           depth30cm: 48,
         },
         {
@@ -55,13 +132,29 @@ describe('buildMoistureSvgChart', () => {
     );
 
     expect(chart).not.toBeNull();
-    expect(chart!.bands.length).toBe(5);
-    expect(chart!.yTicks.length).toBe(8);
-    expect(chart!.yTicks[chart!.yTicks.length - 1].label).toBe('70');
+    expect(chart!.bands.length).toBe(3);
+    expect(chart!.yMin).toBe(10);
+    expect(chart!.yMax).toBe(53);
+    expect(chart!.yTicks.length).toBeGreaterThan(0);
+    expect(Number(chart!.yTicks[0].label)).toBeGreaterThanOrEqual(chart!.yMin);
+    expect(
+      Number(chart!.yTicks[chart!.yTicks.length - 1].label)
+    ).toBeLessThanOrEqual(chart!.yMax);
     expect(chart!.xLabels.length).toBeGreaterThan(0);
     expect(chart!.xLabels[0].transform).toContain('rotate(-55');
     expect(chart!.linePath.startsWith('M')).toBeTrue();
     expect(chart!.linePath.includes(' L')).toBeTrue();
+    expect(chart!.points.length).toBe(3);
+    expect(chart!.points[0].value).toBe(15);
+    expect(chart!.points[0].timestamp).toBeTruthy();
+  });
+
+  it('nearestPlotPointIndex picks closest x', () => {
+    const chart = buildMoistureSvgChart(dayPoints(5), cacao, 1, '7d');
+    expect(chart).not.toBeNull();
+    const midX = chart!.points[2].x;
+    expect(nearestPlotPointIndex(chart!.points, midX)).toBe(2);
+    expect(nearestPlotPointIndex(chart!.points, midX + 0.4)).toBe(2);
   });
 
   it('en 30d coloca al menos 14 etiquetas', () => {

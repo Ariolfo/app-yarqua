@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NavController, ToastController } from '@ionic/angular';
+import { AlertController, NavController, ToastController } from '@ionic/angular';
 
 import { Crop, Network } from '../../Shared/Models/catalog';
 import { CatalogSensorService } from '../../Shared/Services/catalog-sensor.service';
@@ -38,7 +38,8 @@ export class SensorCreatePage implements OnInit {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly navCtrl: NavController,
-    private readonly toastCtrl: ToastController
+    private readonly toastCtrl: ToastController,
+    private readonly alertCtrl: AlertController
   ) {}
 
   get isEdit(): boolean {
@@ -46,50 +47,13 @@ export class SensorCreatePage implements OnInit {
   }
 
   get pageTitle(): string {
-    return this.isEdit ? 'Editar sensor' : 'Nuevo sensor';
+    return this.isEdit ? 'Consultar sensor' : 'Nuevo sensor';
   }
 
-  async ngOnInit(): Promise<void> {
-    this.loading = true;
-    try {
-      const [networks, crops] = await Promise.all([
-        this.catalog.listNetworks(),
-        this.cropService.list(),
-      ]);
-      this.networks = networks;
-      this.crops = crops;
-
-      const idParam = this.route.snapshot.paramMap.get('id');
-      if (idParam) {
-        const id = Number(idParam);
-        if (Number.isFinite(id)) {
-          this.editId = id;
-          const sensor = await this.catalog.getById(id);
-          this.form.patchValue({
-            name: sensor.name,
-            networkId: sensor.networkId,
-            cropId: sensor.cropId ?? null,
-            latitude: sensor.latitude ?? null,
-            longitude: sensor.longitude ?? null,
-            sensorStatus: sensor.sensorStatus || 'desconocido',
-            connectivity: sensor.connectivity || 'offline',
-            farm: sensor.farm || '',
-          });
-        }
-      }
-    } catch (e) {
-      const toast = await this.toastCtrl.create({
-        message: e instanceof Error ? e.message : 'No se pudo cargar el sensor',
-        duration: 2500,
-        color: 'danger',
-      });
-      await toast.present();
-      if (this.editId != null) {
-        await this.router.navigateByUrl('/sensors');
-      }
-    } finally {
-      this.loading = false;
-    }
+  ngOnInit(): void {
+    this.route.paramMap.subscribe((params) => {
+      void this.loadFromRoute(params.get('id'));
+    });
   }
 
   async goHome(): Promise<void> {
@@ -122,29 +86,127 @@ export class SensorCreatePage implements OnInit {
     try {
       if (this.editId != null) {
         await this.catalog.update(this.editId, payload);
+        await this.toast('Sensor actualizado', 'success');
       } else {
-        await this.catalog.create(payload);
+        const created = await this.catalog.create(payload);
+        await this.toast('Sensor creado', 'success');
+        await this.router.navigateByUrl(`/sensors/${created.id}/edit`, {
+          replaceUrl: true,
+        });
       }
-      const toast = await this.toastCtrl.create({
-        message: this.isEdit ? 'Sensor actualizado' : 'Sensor creado',
-        duration: 2000,
-        color: 'success',
-      });
-      await toast.present();
-      await this.router.navigateByUrl('/sensors', { replaceUrl: true });
     } catch (e) {
-      const toast = await this.toastCtrl.create({
-        message: e instanceof Error ? e.message : 'No se pudo guardar',
-        duration: 2500,
-        color: 'danger',
-      });
-      await toast.present();
+      await this.toast(
+        e instanceof Error ? e.message : 'No se pudo guardar',
+        'danger'
+      );
     } finally {
       this.saving = false;
     }
   }
 
-  cancel(): void {
+  async confirmDelete(): Promise<void> {
+    if (this.editId == null) {
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Eliminar sensor',
+      message: '¿Desea eliminar este sensor del catálogo?',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Eliminar',
+          role: 'destructive',
+          handler: () => {
+            void this.deleteSensor();
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  goToList(): void {
     void this.router.navigateByUrl('/sensors');
+  }
+
+  private async loadFromRoute(idParam: string | null): Promise<void> {
+    this.loading = true;
+    try {
+      const [networks, crops] = await Promise.all([
+        this.catalog.listNetworks(),
+        this.cropService.list(),
+      ]);
+      this.networks = networks;
+      this.crops = crops;
+
+      if (!idParam) {
+        this.editId = null;
+        this.form.reset({
+          name: '',
+          networkId: null,
+          cropId: null,
+          latitude: null,
+          longitude: null,
+          sensorStatus: 'desconocido',
+          connectivity: 'offline',
+          farm: '',
+        });
+        return;
+      }
+
+      const id = Number(idParam);
+      if (!Number.isFinite(id)) {
+        return;
+      }
+
+      this.editId = id;
+      const sensor = await this.catalog.getById(id);
+      this.form.patchValue({
+        name: sensor.name,
+        networkId: sensor.networkId,
+        cropId: sensor.cropId ?? null,
+        latitude: sensor.latitude ?? null,
+        longitude: sensor.longitude ?? null,
+        sensorStatus: sensor.sensorStatus || 'desconocido',
+        connectivity: sensor.connectivity || 'offline',
+        farm: sensor.farm || '',
+      });
+    } catch (e) {
+      await this.toast(
+        e instanceof Error ? e.message : 'No se pudo cargar el sensor',
+        'danger'
+      );
+      if (this.editId != null) {
+        await this.router.navigateByUrl('/sensors');
+      }
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  private async deleteSensor(): Promise<void> {
+    if (this.editId == null) {
+      return;
+    }
+
+    try {
+      await this.catalog.remove(this.editId);
+      await this.toast('Sensor eliminado', 'success');
+      await this.router.navigateByUrl('/sensors', { replaceUrl: true });
+    } catch (e) {
+      await this.toast(
+        e instanceof Error ? e.message : 'No se pudo eliminar',
+        'danger'
+      );
+    }
+  }
+
+  private async toast(
+    message: string,
+    color: 'danger' | 'success' | 'warning'
+  ): Promise<void> {
+    const t = await this.toastCtrl.create({ message, duration: 2500, color });
+    await t.present();
   }
 }

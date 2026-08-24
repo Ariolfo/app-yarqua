@@ -54,6 +54,13 @@ export class CropService {
     return updated;
   }
 
+  /** Inactiva un cultivo y limpia caché. */
+  async remove(id: number): Promise<void> {
+    const token = await this.auth.getAccessToken();
+    await firstValueFrom(this.api.delete<{ ok: boolean }>(`/crops/${id}`, token));
+    this.cache = null;
+  }
+
   /** Perfiles para la calculadora. */
   async asIrrigationProfiles(): Promise<IrrigationCropProfile[]> {
     const crops = await this.list();

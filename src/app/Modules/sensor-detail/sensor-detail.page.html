@@ -23,11 +23,11 @@
       </div>
 
       <div
-        *ngIf="alertBanner"
+        *ngIf="alertBannerTitle"
         class="alert-banner"
         [attr.data-status]="badgeStatus"
       >
-        ALERTA: {{ alertBanner }}
+        {{ alertBannerTitle }}
       </div>
 
       <p class="meta" *ngIf="sensor.lastReadingAt">
@@ -52,8 +52,53 @@
     <p class="chart-meta" *ngIf="history.length">
       {{ history.length }} lecturas reales
     </p>
+    <p class="chart-hint" *ngIf="svgChart">
+      En PC: rueda del mouse sobre la curva para zoom en el tiempo. En celular: pellizca con dos dedos.
+      Usa los iconos superiores para restablecer la escala.
+    </p>
 
-    <div class="chart-wrap">
+    <div class="chart-wrap" [class.is-x-zoomed]="isChartXZoomed">
+      <div class="chart-y-controls" *ngIf="svgChart">
+        <button
+          type="button"
+          class="chart-y-btn"
+          [class.active]="chartYScale === 'full' && !isChartXZoomed"
+          (click)="setChartYScale('full')"
+          aria-label="Escala Y de 0 a 100"
+          title="Escala Y: 0–100 %"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="chart-y-btn"
+          [class.active]="chartYScale === 'dynamic' && !isChartXZoomed"
+          (click)="setChartYScale('dynamic')"
+          aria-label="Escala Y automática según datos"
+          title="Escala Y: ajustada a datos"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M12 5v14M8 9l4-4 4 4M8 15l4 4 4-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+          </svg>
+        </button>
+      </div>
+
       <div class="chart-badge" *ngIf="chartLoading">
         <ion-spinner name="crescent" color="primary"></ion-spinner>
       </div>
@@ -62,89 +107,136 @@
         {{ chartError }}
       </p>
 
-      <!-- SVG nativo: bandas + ejes + serie real (sin Chart.js) -->
-      <svg
-        *ngIf="svgChart as c"
-        class="moisture-svg"
-        [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height"
-        role="img"
-        [attr.aria-label]="'Histórico de humedad, ' + history.length + ' lecturas'"
-      >
-        <!-- Bandas de color (CC del cultivo) -->
-        <g *ngFor="let b of c.bands">
+      <div class="chart-stage" *ngIf="svgChart as c">
+        <!-- SVG nativo: bandas + ejes + serie (pointer-events none: captura en capa HTML) -->
+        <svg
+          class="moisture-svg"
+          [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height"
+          preserveAspectRatio="none"
+          role="img"
+          [attr.aria-label]="'Histórico de humedad, ' + history.length + ' lecturas'"
+        >
+          <g *ngFor="let b of c.bands">
+            <rect
+              [attr.x]="c.plotLeft"
+              [attr.y]="b.y"
+              [attr.width]="c.plotRight - c.plotLeft"
+              [attr.height]="b.height"
+              [attr.fill]="b.color"
+            ></rect>
+          </g>
+
+          <g *ngFor="let t of c.yTicks">
+            <line
+              [attr.x1]="c.plotLeft"
+              [attr.x2]="c.plotRight"
+              [attr.y1]="t.y"
+              [attr.y2]="t.y"
+              stroke="rgba(69,90,100,0.25)"
+              stroke-width="1"
+            ></line>
+            <text
+              [attr.x]="c.plotLeft - 6"
+              [attr.y]="t.y + 3"
+              text-anchor="end"
+              class="axis-label"
+            >
+              {{ t.label }}
+            </text>
+          </g>
+
           <rect
             [attr.x]="c.plotLeft"
-            [attr.y]="b.y"
+            [attr.y]="c.plotTop"
             [attr.width]="c.plotRight - c.plotLeft"
-            [attr.height]="b.height"
-            [attr.fill]="b.color"
-          ></rect>
-        </g>
-
-        <!-- Eje Y: ticks y etiquetas -->
-        <g *ngFor="let t of c.yTicks">
-          <line
-            [attr.x1]="c.plotLeft"
-            [attr.x2]="c.plotRight"
-            [attr.y1]="t.y"
-            [attr.y2]="t.y"
-            stroke="rgba(69,90,100,0.25)"
+            [attr.height]="c.plotBottom - c.plotTop"
+            fill="none"
+            stroke="#90a4ae"
             stroke-width="1"
-          ></line>
+          ></rect>
+
+          <path
+            [attr.d]="c.linePath"
+            fill="none"
+            stroke="#1b5e20"
+            stroke-width="2.5"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          ></path>
+
+          <g *ngFor="let x of c.xLabels">
+            <text
+              [attr.x]="x.x"
+              [attr.y]="x.y"
+              text-anchor="end"
+              class="axis-label axis-label-x"
+              [attr.transform]="x.transform"
+            >
+              {{ x.label }}
+            </text>
+          </g>
+
           <text
-            [attr.x]="c.plotLeft - 6"
-            [attr.y]="t.y + 3"
-            text-anchor="end"
-            class="axis-label"
+            [attr.x]="c.yTitleX"
+            [attr.y]="c.yTitleY"
+            text-anchor="middle"
+            class="axis-title"
+            [attr.transform]="'rotate(-90, ' + c.yTitleX + ', ' + c.yTitleY + ')'"
           >
-            {{ t.label }}
+            Humedad (%)
           </text>
-        </g>
 
-        <!-- Marco del área de dibujo -->
-        <rect
-          [attr.x]="c.plotLeft"
-          [attr.y]="c.plotTop"
-          [attr.width]="c.plotRight - c.plotLeft"
-          [attr.height]="c.plotBottom - c.plotTop"
-          fill="none"
-          stroke="#90a4ae"
-          stroke-width="1"
-        ></rect>
+          <g *ngIf="hoverPoint as hp">
+            <line
+              [attr.x1]="hp.x"
+              [attr.x2]="hp.x"
+              [attr.y1]="c.plotTop"
+              [attr.y2]="c.plotBottom"
+              stroke="rgba(16, 96, 192, 0.35)"
+              stroke-width="1"
+              stroke-dasharray="3 3"
+            ></line>
+            <circle
+              [attr.cx]="hp.x"
+              [attr.cy]="hp.y"
+              r="5.5"
+              fill="#1060c0"
+              stroke="#ffffff"
+              stroke-width="2"
+            ></circle>
+          </g>
+        </svg>
 
-        <!-- Serie real -->
-        <path
-          [attr.d]="c.linePath"
-          fill="none"
-          stroke="#1b5e20"
-          stroke-width="2.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        ></path>
+        <!-- Capa HTML: captura fiable de cursor/dedo (en Chrome móvil: pulsar y deslizar) -->
+        <div
+          class="chart-hit"
+          (wheel)="onChartWheel($event)"
+          (pointerdown)="onChartPointer($event)"
+          (pointermove)="onChartPointer($event)"
+          (pointerup)="onChartPointer($event)"
+          (pointerleave)="clearChartHover()"
+          (pointercancel)="clearChartHover()"
+          (mousedown)="onChartPointer($event)"
+          (mousemove)="onChartPointer($event)"
+          (mouseleave)="clearChartHover()"
+          (touchstart)="onChartTouchStart($event)"
+          (touchmove)="onChartTouchMove($event)"
+          (touchend)="onChartTouchEnd($event)"
+          (touchcancel)="onChartTouchEnd($event)"
+        ></div>
 
-        <!-- Eje X: fechas inclinadas (~55°) con densidad según rango -->
-        <g *ngFor="let x of c.xLabels">
-          <text
-            [attr.x]="x.x"
-            [attr.y]="x.y"
-            text-anchor="end"
-            class="axis-label axis-label-x"
-            [attr.transform]="x.transform"
-          >
-            {{ x.label }}
-          </text>
-        </g>
-
-        <text
-          [attr.x]="c.yTitleX"
-          [attr.y]="c.yTitleY"
-          text-anchor="middle"
-          class="axis-title"
-          [attr.transform]="'rotate(-90, ' + c.yTitleX + ', ' + c.yTitleY + ')'"
+        <!-- Tooltip HTML encima del punto -->
+        <div
+          class="chart-tip"
+          *ngIf="hoverPoint as hp"
+          [style.left.%]="(hp.x / c.width) * 100"
+          [style.top.%]="(hp.y / c.height) * 100"
         >
-          Humedad (%)
-        </text>
-      </svg>
+          <strong>{{ hp.value | number: '1.1-1' }} %</strong>
+          <span>{{ formatHoverDay(hp.timestamp) }}</span>
+          <span>{{ formatHoverTime(hp.timestamp) }}</span>
+        </div>
+      </div>
 
       <!-- Fondo de bandas solo mientras carga (antes del SVG) -->
       <div class="css-bands" *ngIf="!svgChart && !chartError" aria-hidden="true">

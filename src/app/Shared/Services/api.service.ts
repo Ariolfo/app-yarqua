@@ -81,6 +81,33 @@ export class ApiService {
       );
   }
 
+  /**
+   * Descarga un archivo binario (p. ej. Excel). No usa el sobre JSON de la API.
+   */
+  downloadBlob(
+    path: string,
+    options?: {
+      params?: Record<string, string | number | boolean>;
+      token?: string | null;
+    }
+  ): Observable<Blob> {
+    return this.http
+      .get(this.url(path), {
+        headers: this.downloadHeaders(options?.token),
+        params: this.toParams(options?.params),
+        responseType: 'blob',
+      })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  private downloadHeaders(token?: string | null): HttpHeaders {
+    let headers = new HttpHeaders();
+    if (token) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
+  }
+
   private url(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
     return `${this.baseUrl}${normalized}`;
@@ -120,6 +147,14 @@ export class ApiService {
   private handleError(err: unknown): Observable<never> {
     if (err instanceof HttpErrorResponse) {
       const body = err.error as ApiResponse<unknown> | string | null;
+      if (err.status === 401) {
+        return throwError(
+          () =>
+            new Error(
+              'Sesión expirada. Cierre sesión e ingrese de nuevo.'
+            )
+        );
+      }
       if (body && typeof body === 'object' && 'message' in body) {
         return throwError(() => new Error(body.message || err.message));
       }

@@ -111,8 +111,18 @@
       <ion-button expand="block" type="submit" [disabled]="saving">
         {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar sensor' }}
       </ion-button>
-      <ion-button expand="block" fill="outline" type="button" (click)="cancel()">
-        Cancelar
+      <ion-button
+        *ngIf="isEdit"
+        expand="block"
+        color="danger"
+        fill="outline"
+        type="button"
+        (click)="confirmDelete()"
+      >
+        Eliminar sensor
+      </ion-button>
+      <ion-button expand="block" fill="outline" type="button" (click)="goToList()">
+        Volver al listado
       </ion-button>
     </div>
   </form>
