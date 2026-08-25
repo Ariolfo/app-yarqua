@@ -125,7 +125,7 @@ export class RegisterPage implements OnInit {
 
     this.submitting = true;
     try {
-      await this.auth.register({
+      const auth = await this.auth.register({
         email: this.form.value.email as string,
         password: this.form.value.password as string,
         name: this.form.value.name as string,
@@ -133,6 +133,14 @@ export class RegisterPage implements OnInit {
         department: department.name,
         city: city.name,
       });
+      if (auth.emailConfirmationRequired) {
+        await this.showToast(
+          'Registro recibido. Confirme su correo electrónico antes de iniciar sesión.',
+          'success'
+        );
+        await this.router.navigateByUrl('/login', { replaceUrl: true });
+        return;
+      }
       await this.router.navigateByUrl('/map', { replaceUrl: true });
     } catch (e) {
       await this.showToast(
@@ -147,11 +155,11 @@ export class RegisterPage implements OnInit {
     this.router.navigateByUrl('/login');
   }
 
-  private async showToast(message: string): Promise<void> {
+  private async showToast(message: string, color: 'danger' | 'success' = 'danger'): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,
       duration: 3200,
-      color: 'danger',
+      color,
       position: 'bottom',
     });
     await toast.present();

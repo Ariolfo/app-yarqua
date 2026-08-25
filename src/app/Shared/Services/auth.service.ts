@@ -18,7 +18,8 @@ const KEY_REFRESH = 'hidrix_refresh_token';
 const KEY_USER = 'hidrix_user';
 
 /**
- * Autenticación con email y contraseña: registro, login, refresh y persistencia en Preferences.
+ * Autenticación con email y contraseña: registro, login, refresh y persistencia.
+ * Web PWA (same-origin): cookies HttpOnly. Móvil/dev: Preferences + Bearer.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
   private refreshToken: string | null = null;
   private currentUser: User | null = null;
   private hydrated = false;
+  private cookieSession = false;
   private readonly userSubject = new BehaviorSubject<User | null>(null);
 
   /** Emite el usuario actual (null si no hay sesión). */
@@ -51,9 +53,12 @@ export class AuthService {
     };
 
     const auth = await firstValueFrom(
-      this.api.post<AuthResponse>('/auth/register', body)
+      this.api.post<AuthResponse>('/auth/register', body, { cookieAuth: true })
     );
-    await this.persistSession(auth.accessToken, auth.refreshToken, auth.user);
+    if (auth.emailConfirmationRequired) {
+      return auth;
+    }
+    await this.persistAuthResponse(auth);
     return auth;
   }
 
@@ -71,9 +76,9 @@ export class AuthService {
     };
 
     const auth = await firstValueFrom(
-      this.api.post<AuthResponse>('/auth/login', body)
+      this.api.post<AuthResponse>('/auth/login', body, { cookieAuth: true })
     );
-    await this.persistSession(auth.accessToken, auth.refreshToken, auth.user);
+    await this.persistAuthResponse(auth);
     return auth;
   }
 
@@ -82,6 +87,21 @@ export class AuthService {
    */
   async refresh(): Promise<boolean> {
     await this.ensureHydrated();
+    if (this.api.usesCookieAuth) {
+      if (!this.cookieSession && !this.currentUser) {
+        return false;
+      }
+      try {
+        await firstValueFrom(
+          this.api.post<RefreshResponse>('/auth/refresh', {}, { cookieAuth: true })
+        );
+        this.cookieSession = true;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     if (!this.refreshToken) {
       return false;
     }
@@ -101,11 +121,21 @@ export class AuthService {
 
   async hasSession(): Promise<boolean> {
     await this.ensureHydrated();
+    if (this.api.usesCookieAuth) {
+      return this.cookieSession || !!this.currentUser;
+    }
     return !!(this.accessToken || this.refreshToken);
   }
 
   async checkSession(): Promise<boolean> {
     await this.ensureHydrated();
+    if (this.api.usesCookieAuth) {
+      if (!this.cookieSession && !this.currentUser) {
+        return false;
+      }
+      return this.refresh();
+    }
+
     if (!this.accessToken && !this.refreshToken) {
       return false;
     }
@@ -117,6 +147,10 @@ export class AuthService {
 
   async getAccessToken(): Promise<string | null> {
     await this.ensureHydrated();
+    if (this.api.usesCookieAuth) {
+      return null;
+    }
+
     if (!this.accessToken && !this.refreshToken) {
       return null;
     }
@@ -129,8 +163,12 @@ export class AuthService {
     return this.accessToken;
   }
 
-  /** Renueva la sesión si hace falta y devuelve un access token válido. */
+  /** Renueva la sesión si hace falta y devuelve un access token válido (null en modo cookie). */
   async getValidAccessToken(): Promise<string | null> {
+    await this.ensureHydrated();
+    if (this.api.usesCookieAuth) {
+      return null;
+    }
     return this.getAccessToken();
   }
 
@@ -157,16 +195,14 @@ export class AuthService {
       };
     }
 
-    const token = await this.getValidAccessToken();
-    if (!token) {
-      return null;
-    }
     try {
       const location = await firstValueFrom(
-        this.api.get<UserLocation>('/auth/location', { token })
+        this.api.get<UserLocation>('/auth/location', {
+          token: await this.getValidAccessToken(),
+        })
       );
-      if (user && location && this.refreshToken) {
-        await this.persistSession(token, this.refreshToken, {
+      if (user && location) {
+        await this.persistUserProfile({
           ...user,
           countryId: location.countryId,
           departmentId: location.departmentId,
@@ -183,14 +219,33 @@ export class AuthService {
   }
 
   async isAdmin(): Promise<boolean> {
-    const user = await this.getUser();
-    return this.hasAdminRole(user);
+    try {
+      const me = await firstValueFrom(
+        this.api.get<User>('/auth/me', {
+          token: await this.getValidAccessToken(),
+        })
+      );
+      return this.hasAdminRole(me);
+    } catch {
+      return false;
+    }
   }
 
   async logout(): Promise<void> {
+    if (this.api.usesCookieAuth) {
+      try {
+        await firstValueFrom(
+          this.api.post('/auth/logout', {}, { cookieAuth: true })
+        );
+      } catch {
+        // Ignorar errores de red al cerrar sesión.
+      }
+    }
+
     this.accessToken = null;
     this.refreshToken = null;
     this.currentUser = null;
+    this.cookieSession = false;
     this.userSubject.next(null);
     await Preferences.remove({ key: KEY_ACCESS });
     await Preferences.remove({ key: KEY_REFRESH });
@@ -199,6 +254,15 @@ export class AuthService {
 
   private hasAdminRole(user: User | null): boolean {
     return !!user?.roles?.some((r) => r.toLowerCase() === 'admin');
+  }
+
+  private async persistAuthResponse(auth: AuthResponse): Promise<void> {
+    if (this.api.usesCookieAuth) {
+      this.cookieSession = true;
+      await this.persistUserProfile(auth.user);
+      return;
+    }
+    await this.persistSession(auth.accessToken, auth.refreshToken, auth.user);
   }
 
   private async persistSession(
@@ -218,10 +282,37 @@ export class AuthService {
     }
   }
 
+  private async persistUserProfile(user: User | null): Promise<void> {
+    this.currentUser = user;
+    this.hydrated = true;
+    this.userSubject.next(user);
+    if (user) {
+      await Preferences.set({ key: KEY_USER, value: JSON.stringify(user) });
+    } else {
+      await Preferences.remove({ key: KEY_USER });
+    }
+  }
+
   private async ensureHydrated(): Promise<void> {
     if (this.hydrated) {
       return;
     }
+
+    if (this.api.usesCookieAuth) {
+      const userRaw = await Preferences.get({ key: KEY_USER });
+      if (userRaw.value) {
+        try {
+          this.currentUser = JSON.parse(userRaw.value) as User;
+          this.cookieSession = true;
+        } catch {
+          this.currentUser = null;
+        }
+      }
+      this.hydrated = true;
+      this.userSubject.next(this.currentUser);
+      return;
+    }
+
     const [access, refresh, userRaw] = await Promise.all([
       Preferences.get({ key: KEY_ACCESS }),
       Preferences.get({ key: KEY_REFRESH }),

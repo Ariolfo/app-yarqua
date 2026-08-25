@@ -1,10 +1,20 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../Models/api-response';
+
+export type ApiRequestOptions = {
+  params?: Record<string, string | number | boolean>;
+  token?: string | null;
+  /** Envía cookies HttpOnly (modo PWA same-origin). */
+  withCredentials?: boolean;
+  /** Solicita al backend guardar tokens en cookies en lugar del JSON. */
+  cookieAuth?: boolean;
+};
 
 /**
  * Cliente HTTP que habla con la API Hidrix y desempaqueta el sobre
@@ -14,6 +24,11 @@ import { ApiResponse } from '../Models/api-response';
 export class ApiService {
   private readonly baseUrl = environment.apiBaseUrl.replace(/\/$/, '');
 
+  /** PWA same-origin: tokens en cookies HttpOnly, no en localStorage/Preferences. */
+  readonly usesCookieAuth =
+    Capacitor.getPlatform() === 'web' &&
+    !this.baseUrl.startsWith('http');
+
   constructor(private readonly http: HttpClient) {}
 
   /**
@@ -21,14 +36,12 @@ export class ApiService {
    * @param path Ruta relativa (p. ej. `/stations`).
    * @param options Parámetros y cabeceras opcionales.
    */
-  get<T>(
-    path: string,
-    options?: { params?: Record<string, string | number | boolean>; token?: string | null }
-  ): Observable<T> {
+  get<T>(path: string, options?: ApiRequestOptions): Observable<T> {
     return this.http
       .get<ApiResponse<T>>(this.url(path), {
-        headers: this.headers(options?.token),
+        headers: this.headers(options),
         params: this.toParams(options?.params),
+        withCredentials: this.resolveCredentials(options),
       })
       .pipe(
         map((res) => this.unwrap(res)),
@@ -40,12 +53,18 @@ export class ApiService {
    * Realiza un POST tipado y devuelve solo el payload `data`.
    * @param path Ruta relativa.
    * @param body Cuerpo JSON.
-   * @param token Access token opcional.
+   * @param options Token, cookies o cabeceras opcionales.
    */
-  post<T>(path: string, body: unknown, token?: string | null): Observable<T> {
+  post<T>(
+    path: string,
+    body: unknown,
+    options?: ApiRequestOptions | string | null
+  ): Observable<T> {
+    const opts = this.normalizeOptions(options);
     return this.http
       .post<ApiResponse<T>>(this.url(path), body, {
-        headers: this.headers(token),
+        headers: this.headers(opts),
+        withCredentials: this.resolveCredentials(opts),
       })
       .pipe(
         map((res) => this.unwrap(res)),
@@ -56,10 +75,16 @@ export class ApiService {
   /**
    * Realiza un PUT tipado y devuelve solo el payload `data`.
    */
-  put<T>(path: string, body: unknown, token?: string | null): Observable<T> {
+  put<T>(
+    path: string,
+    body: unknown,
+    options?: ApiRequestOptions | string | null
+  ): Observable<T> {
+    const opts = this.normalizeOptions(options);
     return this.http
       .put<ApiResponse<T>>(this.url(path), body, {
-        headers: this.headers(token),
+        headers: this.headers(opts),
+        withCredentials: this.resolveCredentials(opts),
       })
       .pipe(
         map((res) => this.unwrap(res)),
@@ -70,10 +95,12 @@ export class ApiService {
   /**
    * Realiza un DELETE tipado y devuelve solo el payload `data`.
    */
-  delete<T>(path: string, token?: string | null): Observable<T> {
+  delete<T>(path: string, options?: ApiRequestOptions | string | null): Observable<T> {
+    const opts = this.normalizeOptions(options);
     return this.http
       .delete<ApiResponse<T>>(this.url(path), {
-        headers: this.headers(token),
+        headers: this.headers(opts),
+        withCredentials: this.resolveCredentials(opts),
       })
       .pipe(
         map((res) => this.unwrap(res)),
@@ -84,24 +111,39 @@ export class ApiService {
   /**
    * Descarga un archivo binario (p. ej. Excel). No usa el sobre JSON de la API.
    */
-  downloadBlob(
-    path: string,
-    options?: {
-      params?: Record<string, string | number | boolean>;
-      token?: string | null;
-    }
-  ): Observable<Blob> {
+  downloadBlob(path: string, options?: ApiRequestOptions): Observable<Blob> {
     return this.http
       .get(this.url(path), {
-        headers: this.downloadHeaders(options?.token),
+        headers: this.downloadHeaders(options),
         params: this.toParams(options?.params),
         responseType: 'blob',
+        withCredentials: this.resolveCredentials(options),
       })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  private downloadHeaders(token?: string | null): HttpHeaders {
+  private normalizeOptions(
+    options?: ApiRequestOptions | string | null
+  ): ApiRequestOptions | undefined {
+    if (typeof options === 'string' || options === null) {
+      return { token: options };
+    }
+    return options;
+  }
+
+  private resolveCredentials(options?: ApiRequestOptions): boolean {
+    if (options?.withCredentials === true) {
+      return true;
+    }
+    if (options?.withCredentials === false) {
+      return false;
+    }
+    return this.usesCookieAuth;
+  }
+
+  private downloadHeaders(options?: ApiRequestOptions): HttpHeaders {
     let headers = new HttpHeaders();
+    const token = options?.token;
     if (token) {
       headers = headers.set('Authorization', `Bearer ${token}`);
     }
@@ -113,10 +155,14 @@ export class ApiService {
     return `${this.baseUrl}${normalized}`;
   }
 
-  private headers(token?: string | null): HttpHeaders {
+  private headers(options?: ApiRequestOptions): HttpHeaders {
     let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    const token = options?.token;
     if (token) {
       headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (options?.cookieAuth || (this.usesCookieAuth && options?.cookieAuth !== false)) {
+      headers = headers.set('X-Hidrix-Auth-Mode', 'cookie');
     }
     return headers;
   }

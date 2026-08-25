@@ -37,6 +37,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: User;
+  emailConfirmationRequired?: boolean;
 }
 
 /** Respuesta de refresh. */

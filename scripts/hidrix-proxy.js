@@ -9,6 +9,7 @@ const http = require('http');
 const LISTEN = Number(process.env.PROXY_PORT || 8300);
 const API = process.env.API_ORIGIN || 'http://127.0.0.1:5080';
 const PWA = process.env.PWA_ORIGIN || 'http://127.0.0.1:8200';
+const EXPOSE_SWAGGER = process.env.PROXY_EXPOSE_SWAGGER === 'true';
 
 function looksLikeStaticAsset(pathname) {
   return (
@@ -68,7 +69,7 @@ const server = http.createServer((req, res) => {
     path === '/health' ||
     path.startsWith('/health?') ||
     path.startsWith('/api/') ||
-    path.startsWith('/swagger');
+    (EXPOSE_SWAGGER && path.startsWith('/swagger'));
   forward(req, res, toApi ? API : PWA, path, { spaFallback: !toApi });
 });
 
